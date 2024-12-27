@@ -1,0 +1,27 @@
+function master_ASD_RLWM
+
+% masterfile to process the behavior log files of ASD_RLWM behavior
+
+root_dir = 'Z:\HongliWang\Juvi_ASD Deterministic';
+
+strain_list = {'ChD8'; 'Nlgn3'; 'Cntnap2'; 'Shank3B'; 'TSC2'};
+
+%% add for loop later
+
+animalList = readtable(fullfile(root_dir, 'Cntnap2','Data','AnimalList.csv'));
+
+logfilepath = fullfile(root_dir, 'Cntnap2','Data');
+analysispath = fullfile(root_dir, 'Cntnap2','Analysis');
+dataIndex = makeDataIndex_ASD(logfilepath, analysispath);
+
+% parse every .mat file, generate .csv files
+for ii = 1:length(dataIndex)
+    resultdf = extract_behavior_df(fullfile(dataIndex.LogFilePath{ii}, dataIndex.LogFileName{ii}), ...
+        fullfile(dataIndex.BehPath{ii}, dataIndex.LogFileName{ii}));
+    outfname = fullfile(dataIndex.BehPath{ii}, sprintf('%s_%s_behaviorDF.csv', dataIndex.Animal{ii}, dataIndex.Session{ii}));
+    if ~isfile(outfname)
+        writetable(result_df, outfname);
+    else
+        fprintf('Skipping file for %s %s\n', animal, session);
+    end
+end

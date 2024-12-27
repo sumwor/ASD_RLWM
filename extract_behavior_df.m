@@ -1,4 +1,4 @@
-function [result] = extract_behavior_df(filename)
+function [result] = extract_behavior_df(filename, savefilepath)
     %% The function takes in filename of an exper structure and outputs behavioral dataframe (matlab table), and save into .csv for python processing
     % filename: string
     % outpath: string, path where csv is going to be saved
