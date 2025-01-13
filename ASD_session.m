@@ -47,7 +47,7 @@ end
 
 
     %% plot ITI
-    edges=[0:1:600]; %ill-defined ITI for last trial
+    edges=[0:1:300]; %ill-defined ITI for last trial
     itiTime = plot_itiTimes(resultdf, edges, tlabel, savebehfigpath);
     
     

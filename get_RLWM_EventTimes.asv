@@ -36,6 +36,31 @@ function out=get_RLWM_EventTimes(varargin)
 
 % trial based, not time based: set size?
 
+%% code taken from Wanchen
+        data=load(full_filename);
+        exper=data.exper;
+%         j=j-1; %included or not depending on which sessions.
+        counted_trial=exper.odor_rlwm.param.countedtrial.value;
+        full_schedule=exper.odor_rlwm.param.schedule.value(1:counted_trial);
+        full_result=exper.odor_rlwm.param.result.value(1:counted_trial);
+        full_odorpokedur=exper.odor_rlwm.param.odorpokedur.value(1:counted_trial);
+        full_portside=exper.odor_rlwm.param.port_side.value(1:counted_trial);
+        Perf=exper.odor_rlwm.param.totalscore.value;
+        
+        
+        % exclude trials with no data (missing trial?)
+        full_schedule_1=full_schedule(full_result~=0);
+        full_portside_1=full_portside(full_result~=0);
+        full_result_1=full_result(full_result~=0);
+
+        % exclude miss trials and withdraw trials
+        full_schedule_1=full_schedule_1(full_result_1~=1.0&full_result_1~=3);
+        full_portside_1=full_portside_1(full_result_1~=1.0&full_result_1~=3);
+        full_result_1=full_result_1(full_result_1~=1.0&full_result_1~=3);
+
+
+
+%% -------
 warning('off','MATLAB:timer:incompatibleTimerLoad');
 warning('off','MATLAB:unknownElementsNowStruc');
 out = [];
@@ -67,28 +92,22 @@ RLWM_EventTimes=[];
 RLWM_EventTimes_n=0;
 kk=0;
 
-if isfield(data.exper,'odor_rlwm_automatic')
-    useField = 'odor_rlwm_automatic';
-elseif isfield(data.exper, 'odor_rlwm')
-    useField = 'odor_rlwm';
-end
-
 if ~isempty(data)
     trial_events=data.exper.rpbox.param.trial_events.value;
-    if isfield(data.exper,useField)
-        CountedTrial=data.exper.(useField).param.countedtrial.value;
-        Result=data.exper.(useField).param.result.value(1:CountedTrial);
-        portside=data.exper.(useField).param.port_side.value(1:CountedTrial);
-        schedule=data.exper.(useField).param.schedule.value(1:CountedTrial);
-        OdorChannelSchedule=data.exper.(useField).param.odorchannel.value(1:CountedTrial);
-        OdorName=data.exper.(useField).param.odorname.value(1:CountedTrial);
+    if isfield(data.exper,'odor_rlwm')
+        CountedTrial=data.exper.odor_rlwm.param.countedtrial.value;
+        Result=data.exper.odor_rlwm.param.result.value(1:CountedTrial);
+        portside=data.exper.odor_rlwm.param.port_side.value(1:CountedTrial);
+        schedule=data.exper.odor_rlwm.param.schedule.value(1:CountedTrial);
+        OdorChannelSchedule=data.exper.odor_rlwm.param.odorchannel.value(1:CountedTrial);
+        OdorName=data.exper.odor_rlwm.param.odorname.value(1:CountedTrial);
 %         ITI=data.exper.odor_rlwm.param.iti.trial(1:CountedTrial);
 %         lwatervalvedur=data.exper.odor_rlwm.param.lwatervalvedur.value;
 %         rwatervalvedur=data.exper.odor_rlwm.param.rwatervalvedur.value;
 %         boxrig=data.exper.control.param.expid.value;
         protocol='odor_rlwm';
-        StimParam=data.exper.(useField).param.stimparam.value;
-        param_string=data.exper.(useField).param.stimparam.user;
+        StimParam=data.exper.odor_rlwm.param.stimparam.value;
+        param_string=data.exper.odor_rlwm.param.stimparam.user;
         LeftP  =str2double(StimParam(:,strcmp(param_string,'left reward ratio')));
         RightP =str2double(StimParam(:,strcmp(param_string,'right reward ratio')));
         LeftRewardP=LeftP(schedule);
@@ -99,16 +118,16 @@ if ~isempty(data)
     end
 
     % start trials based sorting of events
-    valid_trials=logical(size(Result).*0);
+    valid_trials=size(Result).*0;
     for k=1:CountedTrial
         if k==1
             tt1=0;
             try
                 if ismember(Result(k),[1.2, 1.3]) % two or three drop H2O
-                    tt2=data.exper.(useField).param.trial_events.trial{k}(end,3);
+                    tt2=data.exper.odor_rlwm.param.trial_events.trial{k}(end,3);
                     kk=kk+1;
                 else
-                    tt2=data.exper.(useField).param.trial_events.trial{k}(:,3);
+                    tt2=data.exper.odor_rlwm.param.trial_events.trial{k}(:,3);
                     if length(tt2)>1
                         tt2=tt2(1);
                     end
@@ -119,12 +138,12 @@ if ~isempty(data)
             end
         else
             tt1=tt2;
-            if ~isempty(data.exper.(useField).param.trial_events.trial{k})
+            if ~isempty(data.exper.odor_rlwm.param.trial_events.trial{k})
                 if ismember(Result(k),[1.2, 1.3]) % two or three drop H2O
-                    tt2=data.exper.(useField).param.trial_events.trial{k}(end,3);
+                    tt2=data.exper.odor_rlwm.param.trial_events.trial{k}(end,3);
                     kk=kk+1;
                 else
-                    tt2=data.exper.(useField).param.trial_events.trial{k}(:,3);
+                    tt2=data.exper.odor_rlwm.param.trial_events.trial{k}(:,3);
                     if length(tt2)>1
                         tt2=tt2(1);
                     end
@@ -149,7 +168,7 @@ if ~isempty(data)
                 elseif Result(k)==0 && k<CountedTrial
                 % Result(k) is 0, check if trial number jumped by looking
                 % at number of trial transition to next outcome
-                    tt3=data.exper.(useField).param.trial_events.trial{k+1}(1,3);
+                    tt3=data.exper.odor_rlwm.param.trial_events.trial{k+1}(1,3);
                     temp_te=trial_events(trial_events(:,2)>tt1 & trial_events(:,2)<tt3, 2:4);
                     trial_transition =[512 8];
                     trial_transition_count=0;
@@ -183,7 +202,7 @@ if ~isempty(data)
         % C1in in ITI
         c1in_time=current_te(ismember(current_te(:,2),[9 19 512 0 1 11])&ismember(current_te(:,3),1),1);
         % OdorOn Time
-        if data.exper.(useField).param.delayodor.value==1
+        if data.exper.odor_rlwm.param.delayodor.value==1
             new_trial_OdorOn_time=current_te(ismember(current_te(:,2),[2 12 22])&ismember(current_te(:,3),8),1);
         else
             new_trial_OdorOn_time=current_te(ismember(current_te(:,2),[1 11 21])&ismember(current_te(:,3),8),1);

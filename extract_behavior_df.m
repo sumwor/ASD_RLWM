@@ -27,6 +27,9 @@ function [result] = extract_behavior_df(filename, savefilepath)
     
     % side_in
     si_times = backward_times(dmat, outcome_inds, @(region) ((region(:, 1) == 3) | (region(:, 1) == 5)));
+    % go over every trial, is si_times is smaller than ci_times, it is in
+    % fact a miss trial, set the value to be NaN
+    si_times(si_times-ci_times<0)=NaN;
     out.side_in = si_times;
     
     % look forward in time with trial# k + 0.5 and find last_side_out

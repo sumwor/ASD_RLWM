@@ -31,33 +31,33 @@ tlabel=strcat('Subject=',animal,', Time=',session);
 savebehfigpath = fullfile(BehPath,'Figures');
 if ~exist(savebehfigpath)
     mkdir(savebehfigpath)
+end
 
  %% analysis of behavioral performance
     
     % plot behavior in raw format
     
-    plot_session(resultdf,size(resultdf,1),tlabel, BehPath);
+    plot_session(resultdf,size(resultdf,1),tlabel, savebehfigpath);
 
 
     %% plot response times
     valLabel='Response time (s)';    
     edges=[-0.5:0.05:10];
-    responseTime = plot_responseTimes(resultdf, edges, tlabel, BehPath);
+    responseTime = plot_responseTimes(resultdf, edges, tlabel, savebehfigpath);
 
 
     %% plot ITI
-    edges=[0:1:600]; %ill-defined ITI for last trial
-    itiTime = plot_itiTimes(resultdf, edges, tlabel, BehPath);
+    edges=[0:1:300]; %ill-defined ITI for last trial
+    itiTime = plot_itiTimes(resultdf, edges, tlabel, savebehfigpath);
     
     
     %%
-    save(fullfile(savematpath,'beh_analysis.mat'),...
-            'trialData','sessionData','logfileData','trials',...
-            'lregRCUC_output','lregCRInt_output',...
-            'lick_trType','iti_trType','respTime_trType',...
-            'fitpar','bic','nlike',...
-            'entro',...
-            'stats');
+    saveanalysispath = fullfile(BehPath, 'behAnalysis');
+    if ~exist(saveanalysispath)
+        mkdir(saveanalysispath);
+    end
+    save(fullfile(saveanalysispath,'beh_analysis.mat'),...
+            'responseTime', 'itiTime');
     close all;
     clearvars -except i dirs expData;
 end

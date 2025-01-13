@@ -14,17 +14,17 @@ rt = resultdf.side_in-resultdf.center_in;
 % left correct, right correct, left incorrect, right incorrect
 rtHist = zeros(4, length(edges)-1);
 
-
+% n_respon
 for ii = 1:length(rt)
-    rtIdx =ceil((rt(ii)-0.5)/0.05);
+    rtIdx =ceil((rt(ii)+0.5)/0.05);
     if rtIdx > 0
-        if resultdf.odors(ii) > 6.5 & resultdf.reward(ii)>0
+        if mod(resultdf.schedule(ii),2) == 1 & resultdf.reward(ii)>0
             rtHist(1, rtIdx) = rtHist(1, rtIdx)+1;
-        elseif resultdf.odors(ii) < 6.5 & isnan(resultdf.reward(ii))
+        elseif mod(resultdf.schedule(ii),2) == 1 & isnan(resultdf.reward(ii))
             rtHist(2, rtIdx) = rtHist(2, rtIdx)+1;
-        elseif resultdf.odors(ii) < 6.5 & resultdf.reward(ii)>0
+        elseif mod(resultdf.schedule(ii),2) == 0 & resultdf.reward(ii)>0
             rtHist(3, rtIdx) = rtHist(3, rtIdx)+1;
-        elseif resultdf.odors(ii) > 6.5 & isnan(resultdf.reward(ii))
+        elseif mod(resultdf.schedule(ii),2) == 0 & isnan(resultdf.reward(ii))
             rtHist(4, rtIdx) = rtHist(4, rtIdx)+1;
         end
     end
@@ -40,7 +40,7 @@ setup_figprop;
 
 %%
 figure;
-sgtitile('Response time (s)')
+sgtitle('Response time (s)')
 subplot(2,2,1);
 bar(edges(1:end-1),rtHist(1,:),'FaceColor','r','EdgeColor','r');  
 title('Left correct');
