@@ -1,14 +1,25 @@
-function perf = perf_in_quantile(result1, result2)
+function perf = perf_in_quantile(results, protocol)
 
+% AB: calculate 3 sessions
+% CD: calculate 3 sessions
+% DC: calculate 6 sessions
 
-perf = zeros(1,4, 2);
-nTrials1 = size(result1,1); nTrials2 = size(result2, 1);
-for qq = 1:4
-    startTrial1 = floor(nTrials1/4)*(qq-1) + 1;
-    endTrial1 = floor(nTrials1/4)*qq;
-    startTrial2 = floor(nTrials2/4)*(qq-1) + 1;
-    endTrial2 = floor(nTrials2/4)*qq;
-    perf(1,qq, 1) = sum(~isnan(result1.reward(startTrial1:endTrial1)))/(endTrial1-startTrial1+1);
-    perf(1,qq, 2) = sum(~isnan(result2.reward(startTrial2:endTrial2)))/(endTrial2-startTrial2+1);
+if strcmp(protocol, 'AB') || strcmp(protocol,'CD')
+    nSessions = 3;
+elseif strcmp(protocol, 'DC')
+    nSessions = 6;
+end
 
+perf = nan(1,4, nSessions);
+nTrials = cell(nSessions,1);
+for ss = 1:nSessions
+    nTrials{ss} = size(results{ss},1);
+
+    for qq = 1:4
+        startTrial = floor(nTrials{ss}/4)*(qq-1) + 1;
+        endTrial = floor(nTrials{ss}/4)*qq;
+        if size(results{ss},1)>1
+            perf(1,qq, ss) = sum(~isnan(results{ss}.reward(startTrial:endTrial)))/(endTrial-startTrial+1);
+        end
+    end
 end

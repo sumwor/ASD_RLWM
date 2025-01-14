@@ -24,40 +24,43 @@ for ii = 1:nFiles
         dataIndex.BehCSV = cell(nFiles,1);
         dataIndex.OdorPresented = cell(nFiles,1);
     end
-        
+
     outfname = fullfile(dataIndex.BehPath{ii}, sprintf('%s_%s_behaviorDF.csv', dataIndex.Animal{ii}, dataIndex.Session{ii}));
     dataIndex.BehCSV{ii} = sprintf('%s_%s_behaviorDF.csv', dataIndex.Animal{ii}, dataIndex.Session{ii});
-    
+
     resultdf = extract_behavior_df(fullfile(dataIndex.LogFilePath{ii}, dataIndex.LogFileName{ii}), ...
-            fullfile(dataIndex.BehPath{ii}, dataIndex.LogFileName{ii}));
+        fullfile(dataIndex.BehPath{ii}, dataIndex.LogFileName{ii}));
 
-%    if ~isfile(outfname)
+    %    if ~isfile(outfname)
 
-        writetable(resultdf, outfname);
- %   end
-    
+    writetable(resultdf, outfname);
+    %   end
+
     % parse through the result to check what odor presented in the behavior
     % file
     odor_presented = unique(resultdf.schedule);
     dataIndex.OdorPresented{ii} = odor_presented;
     % calculate raw performance with AB, CD, and DC, add to dataIndex table
-%     switch len(odor_presented)
-%         case 2
-%             % only AB odor
-%         case 4
-%             % AB,CD or AB,DC
-%         case 6
-%             % AB, CD, and DC
-%     end
+    %     switch len(odor_presented)
+    %         case 2
+    %             % only AB odor
+    %         case 4
+    %             % AB,CD or AB,DC
+    %         case 6
+    %             % AB, CD, and DC
+    %     end
 
+end
 
-    %% process every session, generate single session analysis, move this
-    % to a independent for loop
-    % 1. behavior session summary
-    % 2. response time
-    % 3. intertial interval
-    %ASD_session(resultdf,dataIndex.Animal{ii}, dataIndex.Session{ii},dataIndex.BehPath{ii} );
-
+%% process every session, generate single session analysis, move this
+% to a independent for loop
+% 1. behavior session summary
+% 2. number of AB/CD/DC trials experienced per session
+% 2. response time
+% 3. intertial interval
+for ii = 1:nFiles
+    resultdf = readtable(dataIndex.BehCSV{ii});
+    ASD_session(resultdf,dataIndex.Animal{ii}, dataIndex.Session{ii},dataIndex.BehPath{ii} );
 end
 
 %% go over every session to plot performance in blocks for

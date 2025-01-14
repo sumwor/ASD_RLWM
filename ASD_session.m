@@ -40,6 +40,7 @@ end
     plot_session(resultdf,size(resultdf,1),tlabel, savebehfigpath);
 
 
+
     %% plot response times
     valLabel='Response time (s)';    
     edges=[-0.5:0.05:10];
