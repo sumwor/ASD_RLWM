@@ -67,10 +67,21 @@ RLWM_EventTimes=[];
 RLWM_EventTimes_n=0;
 kk=0;
 
-if isfield(data.exper,'odor_rlwm_automatic')
+if isfield(data.exper,'odor_rlwm_automatic') & ~isfield(data.exper, 'odor_rlwm')
     useField = 'odor_rlwm_automatic';
-elseif isfield(data.exper, 'odor_rlwm')
+elseif isfield(data.exper, 'odor_rlwm') & ~isfield(data.exper,'odor_rlwm_automatic')
     useField = 'odor_rlwm';
+else
+    % if both exist
+    CountedTrial_1=data.exper.odor_rlwm.param.countedtrial.value;
+    CountedTrial_2=data.exper.odor_rlwm_automatic.param.countedtrial.value;
+    if CountedTrial_1 > 0 & CountedTrial_2 == 0
+        useField = 'odor_rlwm';
+    elseif CountedTrial_2 > 0 & CountedTrial_1 == 0
+        useField = 'odor_rlwm_automatic';
+    elseif CountedTrial_1 > 0 & CountedTrial_2 > 0
+        useField = 'odor_rlwm_automatic';
+    end
 end
 
 if ~isempty(data)

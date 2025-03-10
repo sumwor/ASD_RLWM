@@ -63,6 +63,7 @@ ylabel('Performance');
 %% savefigs
 print(gcf,'-dpng',fullfile(savefigpath,['Number of trials performed']));    %png format
 saveas(gcf, fullfile(savefigpath, ['Number of trials performed']), 'fig');
+%savefig(fullfile(savefigpath, 'Number of trials performed.fig'));
 saveas(gcf, fullfile(savefigpath, ['Number of trials performed']),'svg');
 
 close;

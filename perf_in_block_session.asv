@@ -1,4 +1,6 @@
-function perf = perf_in_block(results, protocol, blockLength)
+function perf = perf_in_block_session(results, protocol, blockLength)
+
+% calculate performance in trial blocks but on a session-basis
 
 % AB: calculate 3 sessions
 % CD: calculate 3 sessions
@@ -10,7 +12,7 @@ elseif strcmp(protocol, 'DC')
     nSessions = 6;
 end
 
-perf = nan(1,50);
+perf = nan(1,20);
 
 for nn = 1:nSessions
     if size(results{nn}) > 1
@@ -19,8 +21,6 @@ for nn = 1:nSessions
     else
         combined_result = [combined_result; results{nn}];
     end
-    else
-        combined_result = NaN;
     end
 end
 nTrials = size(combined_result,1);
