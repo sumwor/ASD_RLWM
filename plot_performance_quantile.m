@@ -1,4 +1,4 @@
-function plot_performance_quantile(data, genotype, savefigpath, tlabel)
+function plot_performance_quantile(data, strain, genotype, savefigpath, tlabel)
 
 if contains(tlabel,'AB') || contains(tlabel, 'CD')
     nPlot = 3;
@@ -13,7 +13,12 @@ for pp = 1:nPlot
     subplot(2,3,pp)
 
     genotype_list = unique(genotype);
-
+    
+   if strcmp(strain, 'Cntnap2')  % only look at WT and KO
+        genotype_list = {'KO', 'WT'};
+   elseif strcmp(strain, 'Shank3B')
+       genotype_list={'HET','WT'};
+    end
     color_list = {'red','blue', 'magenta'};
     for gg = 1:length(genotype_list)
         mean_perf = nanmean(data(strcmp(genotype, genotype_list{gg}),:,pp),1);
@@ -42,6 +47,9 @@ for pp = 1:nPlot
     if ismember('HEM', genotype_list)
         Hetdata = data(strcmp(genotype, 'HEM'),:,pp);
         nHet = sum(strcmp(genotype, 'HEM'));
+    elseif ismember('KO', genotype_list)
+        Hetdata = data(strcmp(genotype, 'KO'),:,pp);
+        nHet = sum(strcmp(genotype, 'KO'));
     else
         Hetdata = data(strcmp(genotype, 'HET'),:,pp);
         nHet = sum(strcmp(genotype, 'HET'));

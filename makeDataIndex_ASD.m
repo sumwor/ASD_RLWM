@@ -157,4 +157,4 @@ for b = 1:nFile
 end
 
 % sort the dataIndex first by animal then session date
-sortedDataIndex = sortrows(dataIndex, {'Animal', 'Session'});
+dataIndex = sortrows(dataIndex, {'Animal', 'Session'});

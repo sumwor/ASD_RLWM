@@ -1,0 +1,270 @@
+function ASD_summary_animal(dataIndex, savedatafolder)
+
+% concatenate AB/CD/DC learning trials
+% run logistic regression
+
+setup_figprop;
+% reinforcement learning: fit for single session but carrying the Q and CKL
+% values from the previous session
+
+animal = dataIndex.Animal{1};
+%% concatenate sessions for logistic regression
+concatenate_AB = table;
+concatenate_CD = table;
+concatenate_DC = table;
+
+nAB = 0;
+nCD = 0;
+nDC = 0;
+ABIdx = [];
+CDIdx = [];
+DCIdx = [];
+for ss =1:size(dataIndex,1)
+    resultdf = readtable(fullfile(dataIndex.BehPath{ss},dataIndex.BehCSV{ss}));
+    if strcmp(dataIndex.Protocol{ss}, 'AB') && nAB<3
+        concatenate_AB = [concatenate_AB; resultdf];
+        nAB = nAB + 1;
+        ABIdx = [ABIdx, ss];
+    elseif strcmp(dataIndex.Protocol{ss}, 'AB-CD') && nCD < 3
+        % find the switch point
+        transitionMask = resultdf.schedule >2;
+        % Find the first index where transitionMask is true
+        idxList = find(transitionMask, 1);
+        concatenate_CD=[concatenate_CD; resultdf(idxList:end,:)];
+        nCD = nCD + 1;
+        CDIdx = [CDIdx, ss];
+    elseif (strcmp(dataIndex.Protocol{ss}, 'AB-CD-DC') || strcmp(dataIndex.Protocol{ss}, 'AB-DC')) && nDC < 6
+        transitionMask = resultdf.schedule >4;
+        idxList = find(transitionMask, 1);
+        concatenate_DC=[concatenate_DC; resultdf(idxList:end,:)];
+        nDC = nDC + 1;
+        DCIdx = [DCIdx, ss];
+    end
+end
+
+tlabel=strcat('Subject=',animal);
+
+cd(savedatafolder)
+step_back = 15;
+[lregRCUC_output, negloglike, bic, nlike]=logreg_RCUC(concatenate_AB,step_back);
+plot_logreg(lregRCUC_output,tlabel);
+print(gcf,'-dpng',['logregRCUC-AB',animal]);    %png format
+saveas(gcf, 'logregCRInt', 'fig');
+
+[lregCRInt_output, negloglike, bic, nlike]=logreg_CRInt(resultdf,step_back);
+plot_logreg(lregCRInt_output,tlabel);
+print(gcf,'-dpng','logregCRInt');    %png format
+saveas(gcf, 'logregCRInt', 'fig');
+
+
+%% reinforcement learning
+% WSLS and Q-learning with choice kernel
+% model the sensory detection noise and assign the state
+
+% simple RPE model is only meaningful in new exposes
+% otherwise the animals were mostly correct, so a very flat likelihood
+% hard to find the result
+
+% action reward contingency
+% odor  correct action
+%   1          0
+%   2          1
+%   3          0
+%   4          1
+%   5          1
+%   6          0
+
+% for reinforcement learning algorithms, the Q and CK values
+% should begin with previous trial values
+
+% 4 algorithms involving Q-values and CK values
+
+% values for RL algorithms
+
+
+%FQ-RPE-CK
+
+
+%FQ-RPE-SDT
+
+
+%FQ-RPE-CK-SDT
+
+model{1}.name = 'WSLS';
+model{1}.fun = 'funWSLS';
+model{1}.initpar=0.5; % initial [prob_WSLS]
+model{1}.lb=0;
+model{1}.ub=1;
+
+%     model{2}.name = 'WSLS_state';
+%     model{2}.fun = 'funWSLS_state';
+%     nStates = length(unique(resultdf.schedule));
+%     model{2}.initpar=0.5*(ones(nStates,1)); % initial [prob_WSLS]
+%     model{2}.lb=0*(ones(nStates,1));
+%     model{2}.ub=(ones(nStates,1));
+
+
+model{2}.name = 'Q_RPE';
+model{2}.fun = 'funQ_RPE';
+model{2}.algo = 'algo_Q_RPE';
+model{2}.initpar=[0.5 4]; % initial [alpha beta]
+model{2}.lb=[0 0];
+model{2}.ub=[1 inf];
+Q.AB = ones(2,2)*0.5;
+Q.CD = ones(2,2)*0.5;
+Q.DC = ones(2,2)*0.5;
+model{2}.initValue = Q;
+%     model{3}.name = 'DQ_RPE';           % text label to refer to the model
+%     model{3}.fun = 'funDQ_RPE';     % the corresponding .m code for the model
+%     model{3}.initpar=[0.5 5 0.2];   % initial [alpha_reward beta alpha_noreward]
+%     model{3}.lb=[0 0 0];            % upper bound of parameters
+%     model{3}.ub=[1 inf 1];          % lower bound of parameters
+%     model{4}.name = 'FQ_RPE';      % text label to refer to the model
+%     model{4}.fun = 'funFQ_RPE';    % the corresponding .m code for the model
+%     model{4}.initpar=[0.5 5];      % initial [alpha_reward beta]
+%     model{4}.lb=[0 0];             % upper bound of parameters
+%     model{4}.ub=[1 inf];           % lower bound of parameters
+
+model{3}.name = 'FQ_RPE_CK'; % with a choice autocorrelation term
+model{3}.fun = 'funFQ_RPE_CK';
+model{3}.initpar = [0.1 1 0 0]; % initial [alpha beta tau phi]
+model{3}.algo = 'algo_FQ_RPE_CK';
+model{3}.lb = [0 0 0 0];
+model{3}.ub = [1 inf 1 inf];
+FQCK.AB.Q = ones(2,2)*0.5;
+FQCK.CD.Q = ones(2,2)*0.5;
+FQCK.DC.Q = ones(2,2)*0.5;
+FQCK.AB.C = ones(2,1)*0.5;
+FQCK.CD.C = ones(2,1)*0.5;
+FQCK.DC.C = ones(2,1)*0.5;
+model{3}.initValue = FQCK;
+
+model{4}.name = 'FQ_RPE_SDT'; % with a choice autocorrelation term
+model{4}.fun = 'funFQ_RPE_SDT';
+model{4}.algo = 'algo_FQ_RPE_SDT';
+model{4}.initpar = [0.1 1 0.001 ]; % initial [alpha beta sigma]
+model{4}.lb = [0 0 0];
+model{4}.ub = [1 inf 1 ];
+FQSDT.AB = ones(2,2)*0.5;
+FQSDT.CD = ones(2,2)*0.5;
+FQSDT.DC = ones(2,2)*0.5;
+model{4}.initValue = FQSDT;
+
+
+model{5}.name = 'FQ_RPE_CK_SDT'; % with a choice autocorrelation term
+model{5}.fun = 'funFQ_RPE_CK_SDT';
+model{5}.algo = 'algo_FQ_RPE_CK_SDT';
+model{5}.initpar = [0.1 1 0 1 0.001 ]; % initial [alpha beta alpha_c beta_c sigma]
+model{5}.lb = [0 0 0 0 0];
+model{5}.ub = [1 inf 1 inf 1 ];
+FQCKSDT.AB.Q = ones(2,2)*0.5;
+FQCKSDT.CD.Q = ones(2,2)*0.5;
+FQCKSDT.DC.Q = ones(2,2)*0.5;
+FQCKSDT.AB.C = ones(2,1)*0.5;
+FQCKSDT.CD.C = ones(2,1)*0.5;
+FQCKSDT.DC.C = ones(2,1)*0.5;
+model{5}.initValue = FQCKSDT;
+
+
+%% fit AB sessions
+schedule = {'AB', 'CD', 'DC'};
+for sch = 1:length(schedule)
+    currSchedule = schedule{sch};
+    if strcmp(currSchedule,'DC')
+        nSessions = nDC;
+        sesIdx = DCIdx;
+    elseif strcmp(currSchedule,'AB')
+        nSessions = nAB;
+        sesIdx = ABIdx;
+    elseif strcmp(currSchedule,'CD')
+        nSessions = nCD;
+        sesIdx = CDIdx;
+    end
+    for ses = 1:nSessions
+        currSession = sesIdx(ses);
+        resultdf = readtable(fullfile(dataIndex.BehPath{currSession},dataIndex.BehCSV{currSession}));
+        nStates = length(unique(resultdf.schedule));
+        if strcmp(currSchedule,'AB')
+            idxList = 1;
+        elseif strcmp(currSchedule,'CD')
+            trialMask = (resultdf.schedule>2);
+            idxList = find(trialMask,1);
+        else
+            trialMask = (resultdf.schedule > 4);
+            idxList = find(trialMask,1);
+        end
+        stats_fit.c = resultdf.actions(idxList:end);
+        stats_fit.r = resultdf.reward(idxList:end);
+        stats_fit.s = resultdf.schedule(idxList:end);
+
+        stats_fit.r(~isnan(resultdf.reward(idxList:end))) = 1;
+        stats_fit.r(isnan(resultdf.reward(idxList:end))) = 0;
+        
+        % re initialize action values for CD session1
+        % state
+
+        fitpar = struct;
+        bic = struct;
+        nlike = struct;
+
+        %     fitpar = cell(0);
+        %     bic = cell(0);
+        for kk=1:5
+            if contains(model{kk}.name,'RPE')  % if RL algorithm
+                if isfield(model{kk},'lb')
+                    [fitpar.(model{kk}.name), ~, bic.(model{kk}.name), nlike.(model{kk}.name)]=fit_fun(stats_fit,model{kk}.fun, ...
+                        model{kk}.initpar,model{kk}.lb,model{kk}.ub, model{kk}.initValue.(currSchedule));
+                else
+                    [fitpar.(model{kk}.name), ~, bic.(model{kk}.name), nlike.(model{kk}.name)]=fit_fun(stats_fit,model{kk}.fun,model{kk}.initpar,model{kk}.initValue);
+                end
+            else
+                if isfield(model{kk},'lb')
+                    [fitpar.(model{kk}.name), ~, bic.(model{kk}.name), nlike.(model{kk}.name)]=fit_fun(stats_fit,model{kk}.fun,model{kk}.initpar,model{kk}.lb,model{kk}.ub);
+                else
+                    [fitpar.(model{kk}.name), ~, bic.(model{kk}.name), nlike.(model{kk}.name)]=fit_fun(stats_fit,model{kk}.fun,model{kk}.initpar);
+                end
+            end
+        end
+
+        % use the fitted parameter to get the latent variables in the end of
+        % the trial
+        for kk = 2:5
+            params = fitpar.(model{kk}.name);
+            savedataname = fullfile(savedatafolder,['latentVar-',model{kk}.name,'-',currSchedule,num2str(ses),'.mat']);
+            if ~exist(savedataname)
+                stats = feval(model{kk}.algo, stats_fit, params, model{kk}.initValue.(currSchedule));
+                plotLabel = [model{kk}.name, '-', currSchedule, '-session', num2str(ses)];
+                plot_stats(stats, savedatafolder, plotLabel);
+
+            else
+                load(savedataname);
+            end
+            if isfield(model{kk}.initValue.(currSchedule), 'C')
+                model{kk}.initValue.(currSchedule).Q = [stats.qA(end,:); stats.qB(end,:)];
+                model{kk}.initValue.(currSchedule).C = stats.ck(end,:);
+            else
+                model{kk}.initValue.(currSchedule) = [stats.qA(end,:); stats.qB(end,:)];
+            end
+            % plot the latent variables and obersevable variables
+            if strcmp(currSchedule,'CD') && ses == 3  % DC will start with CD result
+                if isfield(model{kk}.initValue.(currSchedule), 'C')
+                    model{kk}.initValue.DC.Q =  [stats.qA(end,:); stats.qB(end,:)];
+                    model{kk}.initValue.DC.C =  stats.ck(end,:);
+                else
+                    model{kk}.initValue.DC =  [stats.qA(end,:); stats.qB(end,:)];
+                end
+            end
+            % save stats
+            
+            save(savedataname, "stats");
+
+        end
+        
+        % save fitted result
+        savefitname = fullfile(savedatafolder, ['fitParams-',currSchedule,num2str(ses),'.mat' ]);
+        save(savefitname, 'fitpar', 'bic', 'nlike');
+        close('all');
+    end
+end
+
+end

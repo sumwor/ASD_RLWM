@@ -1,4 +1,4 @@
-function master_ASD_RLWM
+script master_ASD_RLWM
 
 %% to do:
 % check the timestamp of trial start to make sure there is no carrying over
@@ -12,51 +12,61 @@ root_dir = 'Z:\HongliWang\Juvi_ASD Deterministic';
 strain_list = {'ChD8'; 'Nlgn3'; 'Cntnap2'; 'TSC2';'Shank3B'};
 
 %% add for loop later
-strainNum =2;
-animalList = readtable(fullfile(root_dir, strain_list{strainNum},'Data','AnimalList.csv'));
+strainNum =3;
 
-%dataIndex = makeDataIndex_ASD(logfilepath);
+% save the dataIndex data
+dataIndexPath = fullfile(root_dir, strain_list{strainNum},'dataIndex.csv');
 
-logfilepath = fullfile(root_dir, strain_list{strainNum},'Data');
-analysispath = fullfile(root_dir, strain_list{strainNum},'Analysis');
-dataIndex = makeDataIndex_ASD(logfilepath, analysispath);
+if ~exist(dataIndexPath)
+    animalList = readtable(fullfile(root_dir, strain_list{strainNum},'Data','AnimalList.csv'));
 
-nFiles = size(dataIndex,1);
-% parse every .mat file, generate .csv files
+    %dataIndex = makeDataIndex_ASD(logfilepath);
 
-ErrorList = table([],[],'VariableNames',{'Session','ErrorMessage'});
+    logfilepath = fullfile(root_dir, strain_list{strainNum},'Data');
+    analysispath = fullfile(root_dir, strain_list{strainNum},'Analysis');
+    dataIndex = makeDataIndex_ASD(logfilepath, analysispath);
 
-odors = cell(nFiles,1);
-for ii = 1:nFiles
+    nFiles = size(dataIndex,1);
+    % parse every .mat file, generate .csv files
 
-    if ii==1
-        dataIndex.BehCSV = cell(nFiles,1);
-        dataIndex.OdorPresented = cell(nFiles,1);
+    ErrorList = table([],[],'VariableNames',{'Session','ErrorMessage'});
+
+    odors = cell(nFiles,1);
+    for ii = 1:nFiles
+
+        if ii==1
+            dataIndex.BehCSV = cell(nFiles,1);
+            dataIndex.OdorPresented = cell(nFiles,1);
+        end
+
+        outfname = fullfile(dataIndex.BehPath{ii}, sprintf('%s_%s_behaviorDF.csv', dataIndex.Animal{ii}, dataIndex.Session{ii}));
+        dataIndex.BehCSV{ii} = sprintf('%s_%s_behaviorDF.csv', dataIndex.Animal{ii}, dataIndex.Session{ii});
+
+        try
+            resultdf = extract_behavior_df(fullfile(dataIndex.LogFilePath{ii}, dataIndex.LogFileName{ii}));
+            writetable(resultdf, outfname);
+            %   end
+
+            % parse through the result to check what odor presented in the behavior
+            % file
+            odor_presented = unique(resultdf.schedule);
+            dataIndex.OdorPresented{ii} = odor_presented;
+
+        catch ME
+            newEntry = {[dataIndex.Animal{ii},'_', dataIndex.Session{ii}], ME.message};
+            ErrorList = [ErrorList; newEntry];
+        end
+
     end
 
-    outfname = fullfile(dataIndex.BehPath{ii}, sprintf('%s_%s_behaviorDF.csv', dataIndex.Animal{ii}, dataIndex.Session{ii}));
-    dataIndex.BehCSV{ii} = sprintf('%s_%s_behaviorDF.csv', dataIndex.Animal{ii}, dataIndex.Session{ii});
+    % save the error table
+    writetable(ErrorList, fullfile(root_dir,strain_list{strainNum}, 'BuggedSessions.csv'));
 
-    try
-        resultdf = extract_behavior_df(fullfile(dataIndex.LogFilePath{ii}, dataIndex.LogFileName{ii}));
-        writetable(resultdf, outfname);
-        %   end
 
-        % parse through the result to check what odor presented in the behavior
-        % file
-        odor_presented = unique(resultdf.schedule);
-        dataIndex.OdorPresented{ii} = odor_presented;
-
-    catch ME
-        newEntry = {[dataIndex.Animal{ii},'_', dataIndex.Session{ii}], ME.message}
-        ErrorList = [ErrorList; newEntry];
-    end
-
+    writetable(dataIndex, dataIndexPath);
+else
+    readtable(dataIndexPath);
 end
-
-% save the error table
-writetable(ErrorList, fullfile(root_dir,strain_list{strainNum}));
-
 %% process every session, generate single session analysis, move this
 % to a independent for loop
 % 1. behavior session summary
@@ -84,9 +94,29 @@ for ii = 1:nFiles
     end
 end
 
-%ASD_session(resultdf,dataIndex.Animal{ii}, dataIndex.Session{ii},dataIndex.BehPath{ii} );
 
 
+%% single session performance
+% logistic regression & reinforcement learning model
+for ii = 1:nFiles
+    resultdf = readtable(fullfile(dataIndex.BehPath{ii},dataIndex.BehCSV{ii}));
+    ASD_session(resultdf,dataIndex.Protocol{ii},dataIndex.Animal{ii}, dataIndex.Session{ii},dataIndex.BehPath{ii} );
+end
+
+%% reinforcement learning model for each animals
+for aa =11:size(animalList)
+    subDataIndex = dataIndex(strcmp(dataIndex.Animal,num2str(animalList.AnimalID(aa))),:);
+    savedatafolder = fullfile(root_dir, strain_list{strainNum},'Summary',num2str(animalList.AnimalID(aa)));
+    if ~exist(savedatafolder)
+        mkdir(savedatafolder)
+    end
+    ASD_summary_animal(subDataIndex, savedatafolder);
+end
+savesummaryfolder = fullfile(root_dir, strain_list{strainNum},'Summary');
+if ~exist(savesummaryfolder)
+    mkdir(savesummaryfolder)
+end
+ASD_summray_RL(dataIndex, animalList, savesummaryfolder)
 %% check how trial number build up over time
 
 %% go over every session to plot performance in blocks for
@@ -102,7 +132,7 @@ savedatapath = fullfile(root_dir,strain_list{strainNum},'Summary','Results');
 if ~exist(savedatapath)
     mkdir(savedatapath)
 end
-ASD_odor_summary(dataIndex, savefigpath, savedatapath);
+ASD_odor_summary(dataIndex, strain_list{strainNum}, savefigpath, savedatapath);
 
 %% compare WT performance across strain
 
