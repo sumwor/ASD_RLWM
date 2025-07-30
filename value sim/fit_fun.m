@@ -1,4 +1,4 @@
-function [qpar, negloglike, bic, nlike]=fit_fun(stats,fit_fun,initpar,lb,ub)    
+function [qpar, negloglike, bic, nlike]=fit_fun(stats,fit_fun,initpar,lb,ub,v_init)    
 % % fit_fun %
 %PURPOSE:   Fit the choice behavior to a model using maximum likelihood estimate
 %AUTHORS:   AC Kwan 170518
@@ -52,7 +52,11 @@ else
     if ~exist('lb','var')
         [qpar, negloglike, exitflag]=fminsearch(func_handle, initpar, op, [stats.c stats.r]);
     else
-        [qpar, negloglike, exitflag]=fmincon(func_handle, initpar, [], [], [], [], lb, ub, [], op, [stats.c stats.r]);
+        if contains(fit_fun, 'RPE')
+            [qpar, negloglike, exitflag]=fmincon(func_handle, initpar, [], [], [], [], lb, ub, [], op, [stats.c stats.r stats.s],v_init);
+        else
+              [qpar, negloglike, exitflag]=fmincon(func_handle, initpar, [], [], [], [], lb, ub, [], op, [stats.c stats.r stats.s]);
+        end
     end
 end
 
