@@ -464,8 +464,7 @@ plot_performance_quantile(perf_DC_quantile, strain, genotype, savefigpath, 'DC')
 plot_performance_block_session(perf_AB_block_session, strain, genotype, savefigpath, 'AB');
 plot_performance_block_session(perf_CD_block_session, strain, genotype, savefigpath, 'CD');
 plot_performance_block_session(perf_DC_block_session, strain, genotype, savefigpath, 'DC');
-plot_performance_block_session(perf_AB_CD_block_session, strain, genotype, savefigpath, 'AB-CD');
-plot_performance_block_session(perf_AB_DC_block_session, strain, genotype, savefigpath, 'AB-DC');
+plot_performance_block_session(perf_AB_CD_block_session, strain, genotype, savefigpath)
 %% performance in block
 % plot_performance_block(perf_AB_block, blockLength, genotype, savefigpath, 'AB');
 % plot_performance_block(perf_CD_block, blockLength,  genotype, savefigpath, 'CD');

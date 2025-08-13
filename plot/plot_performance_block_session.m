@@ -1,8 +1,8 @@
 function plot_performance_block_session(data, strain, genotype, savefigpath, tlabel)
 
-if contains(tlabel,'AB') || contains(tlabel, 'CD')
+if strcmp(tlabel,'AB') | strcmp(tlabel, 'CD') | strcmp(tlabel, 'AB-CD')
     nPlot = 3;
-elseif contains(tlabel, 'DC')
+elseif strcmp(tlabel, 'DC') | strcmp(protocol, 'AB-DC')
     nPlot = 6;
 end
 

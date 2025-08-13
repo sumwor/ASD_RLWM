@@ -6,9 +6,9 @@ function perf = perf_in_block_session(results, protocol, blockLength)
 % CD: calculate 3 sessions
 % DC: calculate 6 sessions
 
-if strcmp(protocol, 'AB') || strcmp(protocol,'CD')
+if strcmp(protocol, 'AB') || strcmp(protocol,'CD') || strcmp(protocol, 'AB-CD')
     nSessions = 3;
-elseif strcmp(protocol, 'DC')
+elseif strcmp(protocol, 'DC') || strcmp(protocol, 'AB-DC')
     nSessions = 6;
 end
 
