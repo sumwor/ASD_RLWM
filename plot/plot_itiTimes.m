@@ -21,11 +21,11 @@ for ii = 1:length(iti)
     if itiIdx > 0 & itiIdx < length(edges)
         if resultdf.schedule(ii) == 1 & resultdf.reward(ii)>0 % left correct
             itiHist_AB(1, itiIdx) = itiHist_AB(1, itiIdx)+1;
-        elseif resultdf.schedule(ii) ==1 & isnan(resultdf.reward(ii)) % left incorrect
+        elseif resultdf.schedule(ii) ==2 & isnan(resultdf.reward(ii)) % left incorrect
             itiHist_AB(2, itiIdx) = itiHist_AB(2, itiIdx)+1;
         elseif resultdf.schedule(ii) ==2 & resultdf.reward(ii)>0 % right correct
             itiHist_AB(3, itiIdx) = itiHist_AB(3, itiIdx)+1;
-        elseif resultdf.schedule(ii) ==2 & isnan(resultdf.reward(ii)) % right incorrect
+        elseif resultdf.schedule(ii) ==1 & isnan(resultdf.reward(ii)) % right incorrect
             itiHist_AB(4, itiIdx) = itiHist_AB(4, itiIdx)+1;
         end
     end
@@ -48,11 +48,11 @@ for ii = 1:length(iti)
     if itiIdx > 0 & itiIdx < length(edges)
         if resultdf.schedule(ii) == 3 & resultdf.reward(ii)>0 % left correct
             itiHist_CD(1, itiIdx) = itiHist_CD(1, itiIdx)+1;
-        elseif resultdf.schedule(ii) ==3 & isnan(resultdf.reward(ii)) % left incorrect
+        elseif resultdf.schedule(ii) ==4 & isnan(resultdf.reward(ii)) % left incorrect
             itiHist_CD(2, itiIdx) = itiHist_CD(2, itiIdx)+1;
         elseif resultdf.schedule(ii) ==4 & resultdf.reward(ii)>0 % right correct
             itiHist_CD(3, itiIdx) = itiHist_CD(3, itiIdx)+1;
-        elseif resultdf.schedule(ii) ==4 & isnan(resultdf.reward(ii)) % right incorrect
+        elseif resultdf.schedule(ii) ==3 & isnan(resultdf.reward(ii)) % right incorrect
             itiHist_CD(4, itiIdx) = itiHist_CD(4, itiIdx)+1;
         end
     end
@@ -74,11 +74,11 @@ for ii = 1:length(iti)
     itiIdx =ceil((iti(ii)-0)/1);
 
     if itiIdx > 0 & itiIdx < length(edges)
-        if resultdf.schedule(ii) == 5 & resultdf.reward(ii)>0 % left correct
+        if resultdf.schedule(ii) == 6 & resultdf.reward(ii)>0 % left correct
             itiHist_DC(1, itiIdx) = itiHist_DC(1, itiIdx)+1;
         elseif resultdf.schedule(ii) ==5 & isnan(resultdf.reward(ii)) % left incorrect
             itiHist_DC(2, itiIdx) = itiHist_DC(2, itiIdx)+1;
-        elseif resultdf.schedule(ii) ==6 & resultdf.reward(ii)>0 % right correct
+        elseif resultdf.schedule(ii) ==5 & resultdf.reward(ii)>0 % right correct
             itiHist_DC(3, itiIdx) = itiHist_DC(3, itiIdx)+1;
         elseif resultdf.schedule(ii) ==6 & isnan(resultdf.reward(ii)) % right incorrect
             itiHist_DC(4, itiIdx) = itiHist_DC(4, itiIdx)+1;

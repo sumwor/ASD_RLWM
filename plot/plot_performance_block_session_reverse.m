@@ -37,6 +37,8 @@ elseif strcmp(strain, 'ChD8')
     HetGene = 'HET';
 elseif strcmp(strain, 'Cntnap2')
     HetGene = 'HET';
+elseif strcmp(strain, 'Cntnap2_KO')
+    HetGene = 'KO';
 end
 Het_reversed = perf_AUC(intersect(find(strcmp(genotype, HetGene)), reversed),:)';
 Het_not_reversed = perf_AUC(intersect(find(strcmp(genotype, HetGene)), not_reversed),:)';

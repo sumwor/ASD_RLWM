@@ -20,9 +20,11 @@ p_KO = nan(2,3);
 WT_mask = strcmp(genotype, 'WT');
 if ismember('HEM',genotype)
     HET_mask = strcmp(genotype,'HEM');
-elseif ismember('KO', genotype)
+elseif ismember('KO', genotype) & length(unique(genotype))==3
     KO_mask = strcmp(genotype,'KO');
     HET_mask = strcmp(genotype,'HET');
+elseif ismember('KO', genotype) & length(unique(genotype))==2
+    HET_mask = strcmp(genotype, 'KO');
 else
     HET_mask = strcmp(genotype,'HET');
     KO_mask = nan;

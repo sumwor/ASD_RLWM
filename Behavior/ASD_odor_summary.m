@@ -157,7 +157,7 @@ for ii = 1:nSubjects
     end
 end
 
-%% check DC performance based on how many AB/CD trials they have expierenced
+%% check DC performance based on how many AB/CD trials they have experienced
 % check every session before starting DC reversal, including retrain
 % session
 

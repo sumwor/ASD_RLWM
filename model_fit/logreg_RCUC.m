@@ -1,4 +1,4 @@
-function [output, negloglike, bic, nlike]=logreg_RCUC(resultdf,step_back) 
+function [logResult, negloglike, bic, nlike]=logreg_RCUC(resultdf, protocol, step_back)
 % % logreg %
 %PURPOSE:   Logistic regression analysis of choice behavior
 %           regressors are past rewarded choices and unrewarded choices
@@ -16,93 +16,166 @@ function [output, negloglike, bic, nlike]=logreg_RCUC(resultdf,step_back)
 %
 % To plot the output, use plot_logreg().
 
+protocols = {'AB','CD', 'DC'};
+
+%% determine AB/CD/DC phase
+if strcmp(protocol,'AB')
+    ABEnd = size(resultdf,1);
+    CDEnd = NaN;
+    DCEnd = NaN;
+elseif strcmp(protocol,'AB-CD')
+    ABEnd = find(resultdf.schedule == 3 | resultdf.schedule == 4, 1, 'first')-1;
+    CDEnd = size(resultdf,1);
+    DCEnd = NaN;
+elseif strcmp(protocol, 'AB-CD-DC')
+    ABEnd = find(resultdf.schedule == 3 | resultdf.schedule == 4, 1, 'first')-1;
+    CDEnd = find(resultdf.schedule == 5 | resultdf.schedule == 6, 1, 'first')-1;
+    DCEnd = size(resultdf,1);
+elseif strcmp(protocol, 'AB-DC')
+    ABEnd = find(resultdf.schedule == 5 | resultdf.schedule == 6, 1, 'first')-1;
+    CDEnd = NaN;
+    DCEnd = size(resultdf,1);
+end
+
+
 %%
-c = resultdf.actions;  %take player x's choice history, use all including NaN (do not concatenate or skip trials)
-r = resultdf.reward;  %take player x's reward history, use all including NaN (do not concatenate or skip trials)
+for pp = 1:length(protocols)
+    if contains(protocol, protocols{pp})
+        if strcmp(protocols{pp}, 'AB')
+            c = resultdf.actions(1:ABEnd);  %take player x's choice history, use all including NaN (do not concatenate or skip trials)
+            r = resultdf.reward(1:ABEnd);  %take player x's reward history, use all including NaN (do not concatenate or skip trials)
+        elseif strcmp(protocols{pp}, 'CD')
+            c = resultdf.actions(ABEnd+1:CDEnd);
+            r = resultdf.reward(ABEnd+1:CDEnd);
+        elseif strcmp(protocols{pp}, 'DC')
+            if isnan(CDEnd)
+                c = resultdf.actions(ABEnd+1:DCEnd);
+                r = resultdf.reward(ABEnd+1:DCEnd);
+            else
+                c = resultdf.actions(CDEnd+1:DCEnd);
+                r = resultdf.reward(CDEnd+1:DCEnd);
+            end
+        end
 
-% convert r to 1 and 0
-r(isnan(resultdf.reward))=0;
-r(~isnan(resultdf.reward)) = 1;
+        % convert r to 1 and 0
+        temp_r = r;
+        r(isnan(temp_r))=0;
+        r(~isnan(temp_r)) = 1;
 
-% create regressor vectors: rewarded/right = 1; rewarded/left = -1
-% reason for using these two regressors is that they are completely uncorrelated: corrcoef(YR,NR)
-% unlike if we look at e.g. rewarded choice and choice
+        % create regressor vectors: rewarded/right = 1; rewarded/left = -1
+        % reason for using these two regressors is that they are completely uncorrelated: corrcoef(YR,NR)
+        % unlike if we look at e.g. rewarded choice and choice
 
-YR=zeros(length(c),1);   
-YR=r.*((c==1) & (r>0)) + (-1*r).*((c==-1) & (r>0));  %allows for reward size r!=1
-% YR=1*((c==1) & (r==1)) + (-1).*((c==-1) & (r==1));
+        YR=zeros(length(c),1);
+        YR=r.*((c==1) & (r>0)) + (-1*r).*((c==0) & (r>0));  %allows for reward size r!=1
+        % YR=1*((c==1) & (r==1)) + (-1).*((c==-1) & (r==1));
 
-NR=zeros(length(c),1);   % unrewarded/right = 1; unrewarded/left = -1
-NR=1*((c==1) & (r==0)) + (-1)*((c==-1) & (r==0));
+        NR=zeros(length(c),1);   % unrewarded/right = 1; unrewarded/left = -1
+        NR=1*((c==1) & (r==0)) + (-1)*((c==0) & (r==0));
 
-% generate regressor matrix
-rmat=zeros(length(NR)-step_back,2*step_back);
-for i=1+step_back:length(NR)
-    for j=1:step_back
-        rmat(i-step_back,j)=YR(i-j);
-        rmat(i-step_back,j+step_back)=NR(i-j);
-    end
-end
+        % generate regressor matrix
+        rmat=zeros(length(NR)-step_back,2*step_back);
+        for i=1+step_back:length(NR)
+            for j=1:step_back
+                rmat(i-step_back,j)=YR(i-j);
+                rmat(i-step_back,j+step_back)=NR(i-j);
+            end
+        end
 
-%which trial goes into the regression fit?
-crit1 = [zeros(step_back,1); ones(numel(c)-step_back,1)]; %criterion 1: not the first several trials with no choice/outcome history
-crit2 = ~isnan(c);  %criterion 2: a choice was made
-goodTrial = crit1 & crit2;
+        %which trial goes into the regression fit?
+        if numel(c)>step_back
+            crit1 = [zeros(step_back,1); ones(numel(c)-step_back,1)]; %criterion 1: not the first several trials with no choice/outcome history
+            crit2 = ~isnan(c);  %criterion 2: a choice was made
+            crit3 = c<=1;
+            goodTrial = crit1 & crit2 & crit3;
+        else
+            goodTrial = (zeros(length(c),1)==1);
+        end
 
-c_fit=(r>0);    %convert to success = correct choice
-c_fit=c_fit(goodTrial);                       %choice, for trials that go into fit
-rmat_fit=rmat(goodTrial(step_back+1:end),:);  %history, for trials that go into fit
+        c_fit=c;    %convert to success = correct choice
+        c_fit=c_fit(goodTrial);                       %choice, for trials that go into fit
+        rmat_fit=rmat(goodTrial(step_back+1:end),:);  %history, for trials that go into fit
 
-%logistic regression
-[b,~,regstats] =glmfit(rmat_fit, c_fit, 'binomial', 'link', 'logit');
+        % check for perfect separation
+        for i = 1:size(rmat_fit, 2)
+            col = rmat_fit(:, i);
+            if all(c_fit(col == 1) == 1) || all(c_fit(col == 1) == 0)
+                rmat_fit(:,i)=0;
+            end
+        end
 
-output.n=-1:-1:-step_back;
-
-output.b_bias=b(1);
-output.pval_bias=regstats.p(1);
-
-output.b_coeff(:,1)=b(2:step_back+1);
-output.pval_coeff(:,1)=regstats.p(2:step_back+1);
-output.b_label{1}='Rewarded choice';
-
-output.b_coeff(:,2)=b(step_back+2:2*step_back+1);
-output.pval_coeff(:,2)=regstats.p(step_back+2:2*step_back+1);
-output.b_label{2}='Unrewarded choice';
-
-%% negative log likelihood
-
-%probability of choosing left based on logistic regression
-pr(1) = 0.5;
-for k=2:numel(c)
-    if k>step_back
-        backIdx = step_back;  %if at least number of trials permit, use step_back
-    else
-        backIdx = k-1;        %else use what is available
-    end
+        %logistic regression
+        [b,~,regstats] =glmfit(rmat_fit, c_fit, 'binomial', 'link', 'logit');
         
-    b_temp = output.b_bias;    %bias term
-    b_temp = b_temp + nansum(output.b_coeff(1:backIdx,1).*YR(k-1:-1:k-backIdx));  %reward/right terms
-    b_temp = b_temp + nansum(output.b_coeff(1:backIdx,2).*NR(k-1:-1:k-backIdx));  %unreward/right terms
-    pr(k) = exp(b_temp)/(1+exp(b_temp));
-end
+        % check for high betas
+        beta_thresh = 10;  % or 100, depending on how strict you want to be
+        large_beta_idx = find(abs(b(2:end)) > beta_thresh);  % exclude intercept
+        
+        if ~isempty(large_beta_idx)
+            % if there is huge betas, set that column to 0 and fit the
+            % result again
+            rmat_fit(:,large_beta_idx) = 0;
+            [b,~,regstats] =glmfit(rmat_fit, c_fit, 'binomial', 'link', 'logit');
+           % [b_lasso, fitinfo] = lassoglm(rmat_fit, c_fit, 'binomial', 'Link', 'logit', 'CV', 10);
 
-%calculate negative log likelihood
-negloglike = 0;
-for k=1:numel(c)
-    if c(k)==1  %choose right
-        negloglike = negloglike - log(pr(k));
-    elseif c(k)==-1  %choose left
-        negloglike = negloglike - log(1-pr(k));
+        end
+        output.n=-1:-1:-step_back;
+
+        output.b_bias=b(1);
+        output.pval_bias=regstats.p(1);
+
+        output.b_coeff(:,1)=b(2:step_back+1);
+        output.pval_coeff(:,1)=regstats.p(2:step_back+1);
+        output.b_label{1}='Rewarded choice';
+
+        output.b_coeff(:,2)=b(step_back+2:2*step_back+1);
+        output.pval_coeff(:,2)=regstats.p(step_back+2:2*step_back+1);
+        output.b_label{2}='Unrewarded choice';
+
+        logResult.(protocols{pp}) = output;
+
+        pr(1) = 0.5;
+        for k=2:numel(c)
+            if k>step_back
+                backIdx = step_back;  %if at least number of trials permit, use step_back
+            else
+                backIdx = k-1;        %else use what is available
+            end
+
+            b_temp = output.b_bias;    %bias term
+            b_temp = b_temp + nansum(output.b_coeff(1:backIdx,1).*YR(k-1:-1:k-backIdx));  %reward/right terms
+            b_temp = b_temp + nansum(output.b_coeff(1:backIdx,2).*NR(k-1:-1:k-backIdx));  %unreward/right terms
+            pr(k) = exp(b_temp)/(1+exp(b_temp));
+        end
+
+        %calculate negative log likelihood
+        negloglike.(protocols{pp}) = 0;
+        for k=1:numel(c)
+            if c(k)==1  %choose right
+                negloglike.(protocols{pp}) = negloglike.(protocols{pp}) - log(pr(k));
+            elseif c(k)==-1  %choose left
+                negloglike.(protocols{pp}) = negloglike.(protocols{pp}) - log(1-pr(k));
+            end
+        end
+
+        %% BIC, bayesian information criterion
+        %BIC = -logL + klogN
+        %L = negative log-likelihood, k = number of parameters, N = number of trials
+        %... larger value = worse because more parameters is worse, obviously
+        bic.(protocols{pp}) = negloglike.(protocols{pp}) + numel(b)*log(sum(~isnan(c)));
+
+        %% Normalized likelihood
+        %(Ito and Doya, PLoS Comp Biol, 2015)
+        nlike.(protocols{pp}) = exp(-1*negloglike.(protocols{pp}))^(1/sum(~isnan(c)));
+    else
+        logResult.(protocols{pp}) = nan;
+        negloglike.(protocols{pp}) = nan;
+        bic.(protocols{pp}) = nan;
+        nlike.(protocols{pp}) = nan;
     end
+    %% negative log likelihood
+
+    %probability of choosing left based on logistic regression
 end
-
-%% BIC, bayesian information criterion
-%BIC = -logL + klogN
-%L = negative log-likelihood, k = number of parameters, N = number of trials
-%... larger value = worse because more parameters is worse, obviously
-bic = negloglike + numel(b)*log(sum(~isnan(c)));
-
-%% Normalized likelihood 
-%(Ito and Doya, PLoS Comp Biol, 2015)
-nlike = exp(-1*negloglike)^(1/sum(~isnan(c)));
+end
 

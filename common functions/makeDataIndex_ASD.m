@@ -57,12 +57,13 @@ dataIndex.Properties.VariableNames = {...
 animalList = fullfile(logfilepath, 'AnimalList.csv');
 genotype = readtable(animalList);
 
+
 for b = 1:nFile
-   
+
     % Info about the logfile
     dataIndex.LogFilePath(b) = {AllLogfiles(b).folder};
     dataIndex.LogFileName(b) = {AllLogfiles(b).name};
-       
+
     % Info about analysis file
     subfolderName = AllLogfiles(b).folder(numel(logfilepath)+2:end); %identify name of the subfolder for which data reside
     behPath = fullfile(analysispath,subfolderName);      %recreate the folder structure in /data but now in /analysis
@@ -74,14 +75,14 @@ for b = 1:nFile
     dataIndex.Session(b) = matches(1);
 
     % regular expression for protocol and reward size
-    ifCD = contains(AllLogfiles(b).name,'CD');
-    ifDC = contains(AllLogfiles(b).name, 'DC');
-    
+    ifCD = contains(AllLogfiles(b).name,'CD' ,'IgnoreCase', true);
+    ifDC = contains(AllLogfiles(b).name, 'DC',  'IgnoreCase', true);
+
     if ifCD && ifDC
         dataIndex.Protocol(b) = {'AB-CD-DC'};
     elseif ifCD && ~ifDC
         dataIndex.Protocol(b) = {'AB-CD'};
-    elseif ifDC && ~ifCD 
+    elseif ifDC && ~ifCD
         dataIndex.Protocol(b) = {'AB-DC'};
     else
         dataIndex.Protocol(b) = {'AB'};
@@ -90,71 +91,43 @@ for b = 1:nFile
     % reward size
     pattern = 'rwdsz(\d+)';
     match = regexp(AllLogfiles(b).name, pattern,"tokens");
-    
+
     if ~isempty(match)
         dataIndex.RewardSize(b) = {str2num(match{1}{1})};
     else
-         dataIndex.RewardSize(b) = {2};
-    end
-    
-    % count protocol day
-    retrainDay = 1;
-    if b==1
-        dataIndex.ProtocolDay(b) = {1};
-        prevDay = 1;
-        prevProtocol = dataIndex.Protocol(b); % previous protocol that is not retrain
-    else
-        if strcmp(dataIndex.Protocol(b),dataIndex.Protocol(b-1))
-            if ~contains(AllLogfiles(b).name,'retrain')
-                dataIndex.ProtocolDay(b) = {prevDay + 1};
-                prevDay = prevDay + 1;
-            else
-                retrainDay = retrainDay+1;
-                dataIndex.ProtocolDay(b) = {retrainDay};
-            end
-        else
-            if ~contains(AllLogfiles(b).name,'retrain')
-                if ~contains(AllLogfiles(b-1).name,'retrain')
-                    if ~strcmp(dataIndex.Protocol(b), prevProtocol)
-                        dataIndex.ProtocolDay(b) = {1};
-                        prevDay = 1;
-                        retrainDay = 1;
-                        prev1Protocol = prevProtocol; % last last protocol
-                        prevProtocol = dataIndex.Protocol(b);
-                        
-                    else
-                        dataIndex.ProtocolDay(b) = {prevDay+1};
-                        prevDay = prevDay+1;
-                    end
-                else
-                    if ~strcmp(dataIndex.Protocol(b), prevProtocol)
-                        dataIndex.ProtocolDay(b) = {1};
-                        prevDay = 1;
-                        retrainDay = 1;
-                        prev1Protocol = prevProtocol; % last last protocol
-                        prevProtocol = dataIndex.Protocol(b);
-                    else
-                        dataIndex.ProtocolDay(b) = {prevDay+1};
-                        prevDay = prevDay+1;
-                    end
-                    
-                end
-            else
-                if strcmp(prevProtocol, prev1Protocol)
-                    retrainDay = retrainDay+1;
-                else
-                    retrainDay = 1;
-                end
-                dataIndex.ProtocolDay(b) = {retrainDay};
-            end
-        end
-    end
-    % Create directory to store analysis    
-    if ~exist(behPath,'dir')
-        mkdir(behPath);
+        dataIndex.RewardSize(b) = {2};
     end
 
+    % count protocol day
+    currAnimal = dataIndex.Animal(b);
+    if b> 1
+        ifNewAnimal = ~strcmp(currAnimal{1}, dataIndex.Animal{b-1});
+    else
+        ifNewAnimal = 1;
+    end
+
+    if ifNewAnimal
+        ABDay = 1; CDDay = 1; DCDay = 1;
+    end
+
+    if strcmp(dataIndex.Protocol(b),'AB')
+        dataIndex.ProtocolDay(b) = {ABDay};
+        ABDay = ABDay + 1;
+    elseif strcmp(dataIndex.Protocol(b), 'AB-CD')
+        dataIndex.ProtocolDay(b) = {CDDay};
+        CDDay = CDDay + 1;
+    elseif strcmp(dataIndex.Protocol(b), 'AB-CD-DC')
+        dataIndex.ProtocolDay(b) = {1};
+    elseif strcmp(dataIndex.Protocol(b), 'AB-DC')
+        dataIndex.ProtocolDay(b) = {DCDay};
+        DCDay = DCDay + 1;
+    end
+end
+% Create directory to store analysis
+if ~exist(behPath,'dir')
+    mkdir(behPath);
 end
 
 % sort the dataIndex first by animal then session date
 dataIndex = sortrows(dataIndex, {'Animal', 'Session'});
+end

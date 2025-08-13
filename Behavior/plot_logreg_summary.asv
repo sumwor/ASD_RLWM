@@ -1,0 +1,132 @@
+function plot_logreg_summary(input, logLabel, dataIndex, tLabel, savefigpath)
+
+setup_figprop;
+Genotypes = unique(dataIndex.Genotype);
+% get trial Mask
+Genotypes = unique(dataIndex.Genotype);
+if strcmp(tLabel, 'AB')
+    nSessions = 3;
+    ABMask1 = strcmp(dataIndex.Protocol, 'AB') & (cellfun(@(x) x == 1, dataIndex.ProtocolDay));
+    ABMask2 = strcmp(dataIndex.Protocol, 'AB') & (cellfun(@(x) x == 2, dataIndex.ProtocolDay));
+    ABMask3 = strcmp(dataIndex.Protocol, 'AB') & (cellfun(@(x) x == 3, dataIndex.ProtocolDay));
+    data1= input(ABMask1); data1 = cellfun(@(s) s.(tLabel), data1, 'UniformOutput', false);
+    data2 = input(ABMask2);data2 = cellfun(@(s) s.(tLabel), data2, 'UniformOutput', false);
+    data3 = input(ABMask3);data3 = cellfun(@(s) s.(tLabel), data3, 'UniformOutput', false);
+    genotype1 = dataIndex.Genotype(ABMask1);
+    genotype2 = dataIndex.Genotype(ABMask2);
+    genotype3 = dataIndex.Genotype(ABMask3);
+
+elseif strcmp(tlabel, 'AB-CD-AB') % AB trials in AB-CD session
+    nSessions = 3;
+    trialTypes = fieldnames(data.AB);
+    ABMask1 = strcmp(dataIndex.Protocol, 'AB-CD') & (cellfun(@(x) x == 1, dataIndex.ProtocolDay));
+    ABMask2 = strcmp(dataIndex.Protocol, 'AB-CD') & (cellfun(@(x) x == 2, dataIndex.ProtocolDay));
+    ABMask3 = strcmp(dataIndex.Protocol, 'AB-CD') & (cellfun(@(x) x == 3, dataIndex.ProtocolDay));
+    data1 = {}; data2 = {}; data3 = {};
+    for fd = 1:length(trialTypes)
+        data1.(trialTypes{fd}) = input.AB.(trialTypes{fd})(:,ABMask1)./sum(input.AB.(trialTypes{fd})(:,ABMask1),1);
+        data2.(trialTypes{fd}) = input.AB.(trialTypes{fd})(:,ABMask2)./sum(input.AB.(trialTypes{fd})(:,ABMask2),1);
+        data3.(trialTypes{fd}) = input.AB.(trialTypes{fd})(:,ABMask3)./sum(input.AB.(trialTypes{fd})(:,ABMask3),1);
+    end
+    genotype1 = dataIndex.Genotype(ABMask1);
+    genotype2 = dataIndex.Genotype(ABMask2);
+    genotype3 = dataIndex.Genotype(ABMask3);
+
+elseif strcmp(tlabel, 'AB-CD') % CD trials in AB-CD session
+    nSessions = 3;
+
+    ABMask1 = strcmp(dataIndex.Protocol, 'AB-CD') & (cellfun(@(x) x == 1, dataIndex.ProtocolDay));
+    ABMask2 = strcmp(dataIndex.Protocol, 'AB-CD') & (cellfun(@(x) x == 2, dataIndex.ProtocolDay));
+    ABMask3 = strcmp(dataIndex.Protocol, 'AB-CD') & (cellfun(@(x) x == 3, dataIndex.ProtocolDay));
+    data1 = {}; data2 = {}; data3 = {};
+    for fd = 1:length(trialTypes)
+        data1.(trialTypes{fd}) = input.CD.(trialTypes{fd})(:,ABMask1)./sum(input.CD.(trialTypes{fd})(:,ABMask1),1);
+        data2.(trialTypes{fd}) = input.CD.(trialTypes{fd})(:,ABMask2)./sum(input.CD.(trialTypes{fd})(:,ABMask2),1);
+        data3.(trialTypes{fd}) = input.CD.(trialTypes{fd})(:,ABMask3)./sum(input.CD.(trialTypes{fd})(:,ABMask3),1);
+    end
+    genotype1 = dataIndex.Genotype(ABMask1);
+    genotype2 = dataIndex.Genotype(ABMask2);
+    genotype3 = dataIndex.Genotype(ABMask3);
+
+elseif strcmp(tlabel, 'AB-DC-AB') % AB trials in AB-DC session
+    nSessions = 5;
+    ABMask1 = strcmp(dataIndex.Protocol, 'AB-DC') & (cellfun(@(x) x == 1, dataIndex.ProtocolDay));
+    ABMask2 = strcmp(dataIndex.Protocol, 'AB-DC') & (cellfun(@(x) x == 2, dataIndex.ProtocolDay));
+    ABMask3 = strcmp(dataIndex.Protocol, 'AB-DC') & (cellfun(@(x) x == 3, dataIndex.ProtocolDay));
+    ABMask4 = strcmp(dataIndex.Protocol, 'AB-DC') & (cellfun(@(x) x == 4, dataIndex.ProtocolDay));
+    ABMask5 = strcmp(dataIndex.Protocol, 'AB-DC') & (cellfun(@(x) x == 5, dataIndex.ProtocolDay));
+
+    data1 = {}; data2 = {}; data3 = {};data4 = {}; data5 = {};
+    for fd = 1:length(trialTypes)
+        data1.(trialTypes{fd}) = input.AB.(trialTypes{fd})(:,ABMask1)./sum(input.AB.(trialTypes{fd})(:,ABMask1),1);
+        data2.(trialTypes{fd}) = input.AB.(trialTypes{fd})(:,ABMask2)./sum(input.AB.(trialTypes{fd})(:,ABMask2),1);
+        data3.(trialTypes{fd}) = input.AB.(trialTypes{fd})(:,ABMask3)./sum(input.AB.(trialTypes{fd})(:,ABMask3),1);
+        data4.(trialTypes{fd}) = input.AB.(trialTypes{fd})(:,ABMask4)./sum(input.AB.(trialTypes{fd})(:,ABMask4),1);
+        data5.(trialTypes{fd}) = input.AB.(trialTypes{fd})(:,ABMask5)./sum(input.AB.(trialTypes{fd})(:,ABMask5),1);
+
+    end
+    genotype1 = dataIndex.Genotype(ABMask1);
+    genotype2 = dataIndex.Genotype(ABMask2);
+    genotype3 = dataIndex.Genotype(ABMask3);
+    genotype4 = dataIndex.Genotype(ABMask4);
+    genotype5 = dataIndex.Genotype(ABMask5);
+
+elseif strcmp(tlabel, 'AB-DC') % AB trials in AB-DC session
+    nSessions = 5;
+    ABMask1 = strcmp(dataIndex.Protocol, 'AB-DC') & (cellfun(@(x) x == 1, dataIndex.ProtocolDay));
+    ABMask2 = strcmp(dataIndex.Protocol, 'AB-DC') & (cellfun(@(x) x == 2, dataIndex.ProtocolDay));
+    ABMask3 = strcmp(dataIndex.Protocol, 'AB-DC') & (cellfun(@(x) x == 3, dataIndex.ProtocolDay));
+    ABMask4 = strcmp(dataIndex.Protocol, 'AB-DC') & (cellfun(@(x) x == 4, dataIndex.ProtocolDay));
+    ABMask5 = strcmp(dataIndex.Protocol, 'AB-DC') & (cellfun(@(x) x == 5, dataIndex.ProtocolDay));
+
+    data1 = {}; data2 = {}; data3 = {};data4 = {}; data5 = {};
+    for fd = 1:length(trialTypes)
+        data1.(trialTypes{fd}) = input.DC.(trialTypes{fd})(:,ABMask1)./sum(input.DC.(trialTypes{fd})(:,ABMask1),1);
+        data2.(trialTypes{fd}) = input.DC.(trialTypes{fd})(:,ABMask2)./sum(input.DC.(trialTypes{fd})(:,ABMask2),1);
+        data3.(trialTypes{fd}) = input.DC.(trialTypes{fd})(:,ABMask3)./sum(input.DC.(trialTypes{fd})(:,ABMask3),1);
+        data4.(trialTypes{fd}) = input.DC.(trialTypes{fd})(:,ABMask4)./sum(input.DC.(trialTypes{fd})(:,ABMask4),1);
+        data5.(trialTypes{fd}) = input.DC.(trialTypes{fd})(:,ABMask5)./sum(input.DC.(trialTypes{fd})(:,ABMask5),1);
+
+    end
+    genotype1 = dataIndex.Genotype(ABMask1);
+    genotype2 = dataIndex.Genotype(ABMask2);
+    genotype3 = dataIndex.Genotype(ABMask3);
+    genotype4 = dataIndex.Genotype(ABMask4);
+    genotype5 = dataIndex.Genotype(ABMask5);
+
+
+end
+
+if length(Genotypes) == 2
+    colors = {'red', 'black'};
+elseif length(Genotypes) == 3
+    colors = {'blue', 'red', 'black'};
+end
+
+%% plot logistic regression result
+for nSes = 1:nSessions
+    switch nSes
+        case 1
+            data = data1;
+            genotype = genotype1;
+        case 2
+            data = data2;
+            genotype = genotype2;
+        case 3
+            data = data3;
+            genotype = genotype3;
+        case 4
+            data = data4;
+            genotype = genotype4;
+        case 5
+            data = data5;
+            genotype = genotype5;
+        otherwise
+            error('Invalid nSes value');
+    end
+plot_logreg_genotype(data1,genotype1, savefigpath, figname, colors)
+figname = [tLabel,'2 RCUC'];
+plot_logreg_genotype(data2,genotype1, savefigpath, figname, colors)
+figname = [tLabel,'3 RCUC'];
+plot_logreg_genotype(data3,genotype1, savefigpath, figname, colors)
+

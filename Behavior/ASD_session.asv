@@ -80,17 +80,11 @@ end
     end
 
     
-    [lregCRInt_output, negloglike, bic, nlike]=logreg_CRInt(resultdf,protocol, step_back); 
+    [lregCRInt_output, negloglike, bic, nlike]=logreg_CRInt(resultdf,step_back); 
+    plot_logreg(lregCRInt_output,tlabel);
+    print(gcf,'-dpng',fullfile(savebehfigpath,'logregCRInt'));    %png format
+    saveas(gcf, fullfile(savebehfigpath,'logregCRInt'), 'fig');
 
-    for pp =1:length(protocols)
-        if contains(protocol, protocols{pp})
-            newlabel = [tlabel, ' ', protocols{pp}];
-            plot_logreg(lregCRInt_output.(protocols{pp}),newlabel);
-
-            print(gcf,'-dpng',fullfile(savebehfigpath,['logregCRInt ', protocols{pp}]));    %png format
-            saveas(gcf, fullfile(savebehfigpath,['logregCRInt ', protocols{pp}]), 'fig');
-        end
-    end
 
     
     %[~, ~, bic.logregCRInt2, nlike.logregCRInt2]=logreg_CRInt(stats,1,2);

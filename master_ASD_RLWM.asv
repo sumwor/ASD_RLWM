@@ -1,4 +1,4 @@
-script master_ASD_RLWM
+%script master_ASD_RLWM
 
 %% to do:
 % check the timestamp of trial start to make sure there is no carrying over
@@ -9,10 +9,15 @@ script master_ASD_RLWM
 
 root_dir = 'Z:\HongliWang\Juvi_ASD Deterministic';
 
-strain_list = {'ChD8'; 'Nlgn3'; 'Cntnap2'; 'TSC2';'Shank3B'};
+strain_list = {'ChD8'; 'Nlgn3'; 'Cntnap2_KO'; 'TSC2';'TSC2_adult';'Shank3B'; 'Syngap'};
 
 %% add for loop later
-strainNum =4;
+strainNum =2;
+
+% save the dataIndex data
+dataIndexPath = fullfile(root_dir, strain_list{strainNum},'dataIndex.csv');
+
+%if ~exist(dataIndexPath)
 animalList = readtable(fullfile(root_dir, strain_list{strainNum},'Data','AnimalList.csv'));
 
 %dataIndex = makeDataIndex_ASD(logfilepath);
@@ -32,20 +37,107 @@ for ii = 1:nFiles
     if ii==1
         dataIndex.BehCSV = cell(nFiles,1);
         dataIndex.OdorPresented = cell(nFiles,1);
-    end
+        dataIndex.RRABL = nan(nFiles,1);
+        dataIndex.RRABR = nan(nFiles,1);
+        dataIndex.RRCDL = nan(nFiles,1);
+        dataIndex.RRCDR = nan(nFiles,1);
+        dataIndex.RRDCL = nan(nFiles,1);
+        dataIndex.RRDCR = nan(nFiles,1);
+        dataIndex.EntropyAB = nan(nFiles,1);
+        dataIndex.EntropyCD = nan(nFiles,1);
+        dataIndex.EntropyDC = nan(nFiles,1);
 
+
+    end
+    if ~exist(dataIndex.BehPath{ii})
+        mkdir(dataIndex.BehPath{ii});
+    end
     outfname = fullfile(dataIndex.BehPath{ii}, sprintf('%s_%s_behaviorDF.csv', dataIndex.Animal{ii}, dataIndex.Session{ii}));
     dataIndex.BehCSV{ii} = sprintf('%s_%s_behaviorDF.csv', dataIndex.Animal{ii}, dataIndex.Session{ii});
 
     try
-        resultdf = extract_behavior_df(fullfile(dataIndex.LogFilePath{ii}, dataIndex.LogFileName{ii}));
-        writetable(resultdf, outfname);
+        if ~exist(outfname)
+            resultdf = extract_behavior_df(fullfile(dataIndex.LogFilePath{ii}, dataIndex.LogFileName{ii}));
+            writetable(resultdf, outfname);
+        else
+            resultdf = readtable(outfname);
+        end
         %   end
 
         % parse through the result to check what odor presented in the behavior
         % file
-        odor_presented = unique(resultdf.schedule);
+        odor_presented = unique(resultdf.schedule(~isnan(resultdf.schedule)));
         dataIndex.OdorPresented{ii} = odor_presented;
+
+        % check the if the protocol is correct
+        odor_plan.AB = [1,2];
+        odor_plan.ABCD = [1,2,3,4];
+        odor_plan.ABCDDC = [1,2,3,4,5,6];
+        odor_plan.ABDC = [1,2,5,6];
+
+        if strcmp(dataIndex.Protocol{ii},'AB')
+            odor = odor_plan.AB;
+        elseif strcmp(dataIndex.Protocol{ii},'AB-CD')
+            odor = odor_plan.ABCD;
+        elseif strcmp(dataIndex.Protocol{ii},'AB-CD-DC')
+            odor = odor_plan.ABCDDC;
+        elseif strcmp(dataIndex.Protocol{ii}, 'AB-DC')
+            odor = odor_plan.ABDC;
+        end
+        if ~isequal(odor_presented,odor')
+            display(['Unmatching odor and file name:',dataIndex.LogFileName{ii}])
+        end
+
+        %% calculate average reward rate - to compare with the notebook
+        % double check to make sure correct .mat file is logged here
+        if strcmp(dataIndex.Protocol{ii},'AB')
+            ABEnd = size(resultdf,1);
+            CDEnd = NaN;
+            DCEnd = NaN;
+            dataIndex.RRABL(ii) = sum((resultdf.schedule(1:ABEnd) == 1) & ~isnan(resultdf.reward(1:ABEnd)))/sum(resultdf.schedule(1:ABEnd) == 1);
+            dataIndex.RRABR(ii) = sum((resultdf.schedule(1:ABEnd) == 2) & ~isnan(resultdf.reward(1:ABEnd)))/sum(resultdf.schedule(1:ABEnd) == 2);
+            dataIndex.EntropyAB(ii) = get_stimulus_entropy(resultdf.schedule(1:ABEnd));
+
+        elseif strcmp(dataIndex.Protocol{ii},'AB-CD')
+            ABEnd = find(resultdf.schedule == 3 | resultdf.schedule == 4, 1, 'first')-1;
+            CDEnd = size(resultdf,1);
+            DCEnd = NaN;
+            dataIndex.RRABL(ii) = sum((resultdf.schedule(1:ABEnd) == 1) & ~isnan(resultdf.reward(1:ABEnd)))/sum(resultdf.schedule(1:ABEnd) == 1);
+            dataIndex.RRABR(ii) = sum((resultdf.schedule(1:ABEnd) == 2) & ~isnan(resultdf.reward(1:ABEnd)))/sum(resultdf.schedule(1:ABEnd) == 2);
+            dataIndex.RRCDL(ii) = sum((resultdf.schedule(ABEnd+1:CDEnd) == 3) & ~isnan(resultdf.reward(ABEnd+1:CDEnd)))/sum(resultdf.schedule(ABEnd+1:CDEnd) == 3);
+            dataIndex.RRCDR(ii) = sum((resultdf.schedule(ABEnd+1:CDEnd) == 4) & ~isnan(resultdf.reward(ABEnd+1:CDEnd)))/sum(resultdf.schedule(ABEnd+1:CDEnd) == 4);
+            dataIndex.EntropyAB(ii) = get_stimulus_entropy(resultdf.schedule(1:ABEnd));
+            dataIndex.EntropyCD(ii) = get_stimulus_entropy(resultdf.schedule(ABEnd+1:CDEnd));
+
+        elseif strcmp(dataIndex.Protocol{ii}, 'AB-CD-DC')
+            ABEnd = find(resultdf.schedule == 3 | resultdf.schedule == 4, 1, 'first')-1;
+            CDEnd = find(resultdf.schedule == 5 | resultdf.schedule == 6, 1, 'first')-1;
+            DCEnd = size(resultdf,1);
+            dataIndex.RRABL(ii) = sum((resultdf.schedule(1:ABEnd) == 1) & ~isnan(resultdf.reward(1:ABEnd)))/sum(resultdf.schedule(1:ABEnd) == 1);
+            dataIndex.RRABR(ii) = sum((resultdf.schedule(1:ABEnd) == 2) & ~isnan(resultdf.reward(1:ABEnd)))/sum(resultdf.schedule(1:ABEnd) == 2);
+            dataIndex.RRCDL(ii) = sum((resultdf.schedule(ABEnd+1:CDEnd) == 3) & ~isnan(resultdf.reward(ABEnd+1:CDEnd)))/sum(resultdf.schedule(ABEnd+1:CDEnd) == 3);
+            dataIndex.RRCDR(ii) = sum((resultdf.schedule(ABEnd+1:CDEnd) == 4) & ~isnan(resultdf.reward(ABEnd+1:CDEnd)))/sum(resultdf.schedule(ABEnd+1:CDEnd) == 4);
+            dataIndex.RRDCL(ii) = sum((resultdf.schedule(CDEnd+1:DCEnd) == 6) & ~isnan(resultdf.reward(CDEnd+1:DCEnd)))/sum(resultdf.schedule(CDEnd+1:DCEnd) == 6);
+            dataIndex.RRDCR(ii)= sum((resultdf.schedule(CDEnd+1:DCEnd) == 5) & ~isnan(resultdf.reward(CDEnd+1:DCEnd)))/sum(resultdf.schedule(CDEnd+1:DCEnd) == 5);
+            dataIndex.EntropyAB(ii) = get_stimulus_entropy(resultdf.schedule(1:ABEnd));
+            dataIndex.EntropyCD(ii) = get_stimulus_entropy(resultdf.schedule(ABEnd+1:CDEnd));
+            dataIndex.EntropyDC(ii) = get_stimulus_entropy(resultdf.schedule(CDEnd+1:DCEnd));
+
+        elseif strcmp(dataIndex.Protocol{ii}, 'AB-DC')
+            ABEnd = find(resultdf.schedule == 5 | resultdf.schedule == 6, 1, 'first')-1;
+            CDEnd = NaN;
+            DCEnd = size(resultdf,1);
+            dataIndex.RRABL(ii) = sum((resultdf.schedule(1:ABEnd) == 1) & ~isnan(resultdf.reward(1:ABEnd)))/sum(resultdf.schedule(1:ABEnd) == 1);
+            dataIndex.RRABR(ii) = sum((resultdf.schedule(1:ABEnd) == 2) & ~isnan(resultdf.reward(1:ABEnd)))/sum(resultdf.schedule(1:ABEnd) == 2);
+            dataIndex.RRDCL(ii) = sum((resultdf.schedule(ABEnd+1:DCEnd) == 6) & ~isnan(resultdf.reward(ABEnd+1:DCEnd)))/sum(resultdf.schedule(ABEnd+1:DCEnd) == 6);
+            dataIndex.RRDCR(ii) = sum((resultdf.schedule(ABEnd+1:DCEnd) == 5) & ~isnan(resultdf.reward(ABEnd+1:DCEnd)))/sum(resultdf.schedule(ABEnd+1:DCEnd) == 5);
+            dataIndex.EntropyAB(ii) = get_stimulus_entropy(resultdf.schedule(1:ABEnd));
+            dataIndex.EntropyDC(ii) = get_stimulus_entropy(resultdf.schedule(ABEnd+1:DCEnd));
+
+        end
+
+
+
 
     catch ME
         newEntry = {[dataIndex.Animal{ii},'_', dataIndex.Session{ii}], ME.message};
@@ -57,6 +149,29 @@ end
 % save the error table
 writetable(ErrorList, fullfile(root_dir,strain_list{strainNum}, 'BuggedSessions.csv'));
 
+
+writetable(dataIndex, dataIndexPath);
+%else
+%dataIndex=readtable(dataIndexPath);
+%nFiles = size(dataIndex,1);
+%end
+
+%% check if reversed
+animalList.reversed = zeros(size(animalList,1),1);
+for aa = 1:size(animalList,1)
+    subdataIndex = dataIndex(strcmp(dataIndex.Animal, num2str(animalList.AnimalID(aa))),:);
+    % if AB-DC count up to 4
+    % average of session 5/6 exceed 60%
+    Values = cellfun(@(x) x,subdataIndex.ProtocolDay);
+    sessionMask = Values>=4 & strcmp(subdataIndex.Protocol, 'AB-DC');
+    if sum(sessionMask)>0
+        maxPerformance = max((subdataIndex.RRDCL(sessionMask) + subdataIndex.RRDCR(sessionMask))/2);
+        if maxPerformance > 0.6
+            animalList.reversed(aa) = 1;
+        end
+    end
+end
+animalList.reversed = boolean(animalList.reversed);
 %% process every session, generate single session analysis, move this
 % to a independent for loop
 % 1. behavior session summary
@@ -90,30 +205,13 @@ end
 % logistic regression & reinforcement learning model
 for ii = 1:nFiles
     resultdf = readtable(fullfile(dataIndex.BehPath{ii},dataIndex.BehCSV{ii}));
-    ASD_session(resultdf,dataIndex.Protocol{ii},dataIndex.Animal{ii}, dataIndex.Session{ii},dataIndex.BehPath{ii} );
+    ASD_session(resultdf,dataIndex.Protocol{ii},dataIndex.Animal(ii), dataIndex.Session(ii),dataIndex.BehPath{ii} );
 end
 
-%% reinforcement learning model for each animals
-for aa =1:size(animalList)
-    subDataIndex = dataIndex(strcmp(dataIndex.Animal,num2str(animalList.AnimalID(aa))),:);
-    savedatafolder = fullfile(root_dir, strain_list{strainNum},'Summary',num2str(animalList.AnimalID(aa)));
-    if ~exist(savedatafolder)
-        mkdir(savedatafolder)
-    end
-    ASD_summary_animal(subDataIndex, savedatafolder);
-end
 savesummaryfolder = fullfile(root_dir, strain_list{strainNum},'Summary');
-    if ~exist(savesummaryfolder)
-        mkdir(savesummaryfolder)
-    end
-ASD_summray_RL(dataIndex, animalList, savesummaryfolder)
-%% check how trial number build up over time
-
-%% go over every session to plot performance in blocks for
-% 1. first two sessions of AB
-% 2. first two sessions of CD
-% 3. DC reverse
-
+if ~exist(savesummaryfolder)
+    mkdir(savesummaryfolder)
+end
 savefigpath = fullfile(root_dir,strain_list{strainNum},'Summary','BehPlot');
 if ~exist(savefigpath)
     mkdir(savefigpath)
@@ -122,6 +220,66 @@ savedatapath = fullfile(root_dir,strain_list{strainNum},'Summary','Results');
 if ~exist(savedatapath)
     mkdir(savedatapath)
 end
+
+step_back = 5;
+tlabels = {'AB', 'AB-CD-AB', 'AB-CD', 'AB-DC-AB', 'AB-DC'};
+sessions = 1:5;
+for ll = 1:length(tlabels)
+    for ss = 1:length(sessions)
+        if sessions(ss) > 3 & ismember(tlabels{ll}, {'AB', 'AB-CD', 'AB-CD-AB'})
+            break;
+        else
+            display([tlabels{ll}, num2str(sessions(ss))])
+            mixed_logreg_RCUC(dataIndex,tlabels{ll}, sessions(ss), step_back, savefigpath,savedatapath)
+            mixed_logreg_CRInt(dataIndex,tlabels{ll}, sessions(ss), step_back, savefigpath,savedatapath)
+
+        end
+    end
+end
+
+% consider only reversed animals
+
+
+step_back = 5;
+tlabels = {'AB', 'AB-CD',  'AB-DC'};
+sessions = 1:5;
+reversedMask = ismember(cellstr([dataIndex.Animal]),num2str(animalList.AnimalID(animalList.reversed)));
+reversedDataIndex = dataIndex(reversedMask,:);
+for ll = 1:length(tlabels)
+    for ss = 1:length(sessions)
+        if sessions(ss) > 3 & ismember(tlabels{ll}, {'AB', 'AB-CD', 'AB-CD-AB'})
+            break;
+        else
+            display([tlabels{ll}, num2str(sessions(ss))])
+            mixed_logreg_RCUC(reversedDataIndex ,tlabels{ll}, sessions(ss), step_back, savefigpath,savedatapath)
+
+            mixed_logreg_CRInt(reversedDataIndex ,tlabels{ll}, sessions(ss), step_back, savefigpath,savedatapath)
+
+        end
+    end
+end
+
+ASD_summary_behavior(dataIndex, savefigpath)
+
+%% reinforcement learning model for each animals
+for aa =11:size(animalList)
+    subDataIndex = dataIndex(strcmp(dataIndex.Animal,num2str(animalList.AnimalID(aa))),:);
+    savedatafolder = fullfile(root_dir, strain_list{strainNum},'Summary',num2str(animalList.AnimalID(aa)));
+    if ~exist(savedatafolder)
+        mkdir(savedatafolder)
+    end
+    ASD_summary_animal(subDataIndex, savedatafolder);
+end
+
+ASD_summray_RL(dataIndex, animalList, savesummaryfolder)
+%% check how trial number build up over time
+
+%% go over every session to plot performance in blocks for
+% 1. first two sessions of AB
+% 2. first two sessions of CD
+% 3. DC reverse
+
+
 ASD_odor_summary(dataIndex, strain_list{strainNum}, savefigpath, savedatapath);
 
 %% compare WT performance across strain

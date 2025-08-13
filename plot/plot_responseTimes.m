@@ -24,20 +24,20 @@ for ii = 1:length(rt)
     if rtIdx > 0 & rtIdx < length(edges)
         if resultdf.schedule(ii) == 1 & resultdf.reward(ii)>0 % left rewarded
             rtHist_AB(1, rtIdx) = rtHist_AB(1, rtIdx)+1;
-        elseif resultdf.schedule(ii) == 1 & isnan(resultdf.reward(ii)) % left unrewarded
+        elseif resultdf.schedule(ii) == 2 & isnan(resultdf.reward(ii)) % left unrewarded
             rtHist_AB(2, rtIdx) = rtHist_AB(2, rtIdx)+1;
         elseif resultdf.schedule(ii) == 2 & resultdf.reward(ii)>0 % right rewarded
             rtHist_AB(3, rtIdx) = rtHist_AB(3, rtIdx)+1;
-        elseif resultdf.schedule(ii) == 2 & isnan(resultdf.reward(ii)) % right rewarded
+        elseif resultdf.schedule(ii) == 1 & isnan(resultdf.reward(ii)) % right rewarded
             rtHist_AB(4, rtIdx) = rtHist_AB(4, rtIdx)+1;
         end
     end
 end
 
 responseTime.AB.leftCorrect = rtHist_AB(1,:);
-responseTime.AB.leftIncorrect = rtHist_AB(2,:);
+responseTime.AB.leftIncorrect = rtHist_AB(2,:); % left as a wrong choice
 responseTime.AB.rightCorrect = rtHist_AB(3,:);
-responseTime.AB.rightIncorrect = rtHist_AB(4,:);
+responseTime.AB.rightIncorrect = rtHist_AB(4,:); % right as a wrong choice
 
 
 %% CD odor
@@ -52,11 +52,11 @@ for ii = 1:length(rt)
     if rtIdx > 0 & rtIdx < length(edges)
         if resultdf.schedule(ii) == 3 & resultdf.reward(ii)>0 % left rewarded
             rtHist_CD(1, rtIdx) = rtHist_CD(1, rtIdx)+1;
-        elseif resultdf.schedule(ii) == 3 & isnan(resultdf.reward(ii)) % left unrewarded
+        elseif resultdf.schedule(ii) == 4 & isnan(resultdf.reward(ii)) % left unrewarded
             rtHist_CD(2, rtIdx) = rtHist_CD(2, rtIdx)+1;
         elseif resultdf.schedule(ii) == 4 & resultdf.reward(ii)>0 % right rewarded
             rtHist_CD(3, rtIdx) = rtHist_CD(3, rtIdx)+1;
-        elseif resultdf.schedule(ii) == 4 & isnan(resultdf.reward(ii)) % right rewarded
+        elseif resultdf.schedule(ii) == 3 & isnan(resultdf.reward(ii)) % right rewarded
             rtHist_CD(4, rtIdx) = rtHist_CD(4, rtIdx)+1;
         end
     end
@@ -79,11 +79,11 @@ if strcmp(protocol, 'AB-DC') | strcmp(protocol, 'AB-CD-DC')
 for ii = 1:length(rt)
     rtIdx =ceil((rt(ii)+0.5)/0.05);
     if rtIdx > 0 & rtIdx < length(edges)
-        if resultdf.schedule(ii) == 5 & resultdf.reward(ii)>0 % left rewarded
+        if resultdf.schedule(ii) == 6 & resultdf.reward(ii)>0 % left rewarded
             rtHist_DC(1, rtIdx) = rtHist_DC(1, rtIdx)+1;
         elseif resultdf.schedule(ii) == 5 & isnan(resultdf.reward(ii)) % left unrewarded
             rtHist_DC(2, rtIdx) = rtHist_DC(2, rtIdx)+1;
-        elseif resultdf.schedule(ii) == 6 & resultdf.reward(ii)>0 % right rewarded
+        elseif resultdf.schedule(ii) == 5 & resultdf.reward(ii)>0 % right rewarded
             rtHist_DC(3, rtIdx) = rtHist_DC(3, rtIdx)+1;
         elseif resultdf.schedule(ii) == 6 & isnan(resultdf.reward(ii)) % right rewarded
             rtHist_DC(4, rtIdx) = rtHist_DC(4, rtIdx)+1;

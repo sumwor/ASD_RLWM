@@ -1,0 +1,195 @@
+function plot_itiTimes_summary(input, dataIndex, edges,tlabel, savefigpath)
+
+setup_figprop;
+trialTypes = fieldnames(input.AB);
+
+% get trial Mask
+Genotypes = unique(dataIndex.Genotype);
+if strcmp(tlabel, 'AB')
+    nSessions = 3;
+    ABMask1 = strcmp(dataIndex.Protocol, 'AB') & (cellfun(@(x) x == 1, dataIndex.ProtocolDay));
+    ABMask2 = strcmp(dataIndex.Protocol, 'AB') & (cellfun(@(x) x == 2, dataIndex.ProtocolDay));
+    ABMask3 = strcmp(dataIndex.Protocol, 'AB') & (cellfun(@(x) x == 3, dataIndex.ProtocolDay));
+    data1 = {}; data2 = {}; data3 = {};
+    for fd = 1:length(trialTypes)
+        data1.(trialTypes{fd}) = input.AB.(trialTypes{fd})(:,ABMask1)./sum(input.AB.(trialTypes{fd})(:,ABMask1),1);
+        data2.(trialTypes{fd}) = input.AB.(trialTypes{fd})(:,ABMask2)./sum(input.AB.(trialTypes{fd})(:,ABMask2),1);
+        data3.(trialTypes{fd}) = input.AB.(trialTypes{fd})(:,ABMask3)./sum(input.AB.(trialTypes{fd})(:,ABMask3),1);
+    end
+    genotype1 = dataIndex.Genotype(ABMask1);
+    genotype2 = dataIndex.Genotype(ABMask2);
+    genotype3 = dataIndex.Genotype(ABMask3);
+
+elseif strcmp(tlabel, 'AB-CD-AB') % AB trials in AB-CD session
+    nSessions = 3;
+    
+    ABMask1 = strcmp(dataIndex.Protocol, 'AB-CD') & (cellfun(@(x) x == 1, dataIndex.ProtocolDay));
+    ABMask2 = strcmp(dataIndex.Protocol, 'AB-CD') & (cellfun(@(x) x == 2, dataIndex.ProtocolDay));
+    ABMask3 = strcmp(dataIndex.Protocol, 'AB-CD') & (cellfun(@(x) x == 3, dataIndex.ProtocolDay));
+    data1 = {}; data2 = {}; data3 = {};
+    for fd = 1:length(trialTypes)
+        data1.(trialTypes{fd}) = input.AB.(trialTypes{fd})(:,ABMask1)./sum(input.AB.(trialTypes{fd})(:,ABMask1),1);
+        data2.(trialTypes{fd}) = input.AB.(trialTypes{fd})(:,ABMask2)./sum(input.AB.(trialTypes{fd})(:,ABMask2),1);
+        data3.(trialTypes{fd}) = input.AB.(trialTypes{fd})(:,ABMask3)./sum(input.AB.(trialTypes{fd})(:,ABMask3),1);
+    end
+    genotype1 = dataIndex.Genotype(ABMask1);
+    genotype2 = dataIndex.Genotype(ABMask2);
+    genotype3 = dataIndex.Genotype(ABMask3);
+
+elseif strcmp(tlabel, 'AB-CD') % CD trials in AB-CD session
+    nSessions = 3;
+
+    ABMask1 = strcmp(dataIndex.Protocol, 'AB-CD') & (cellfun(@(x) x == 1, dataIndex.ProtocolDay));
+    ABMask2 = strcmp(dataIndex.Protocol, 'AB-CD') & (cellfun(@(x) x == 2, dataIndex.ProtocolDay));
+    ABMask3 = strcmp(dataIndex.Protocol, 'AB-CD') & (cellfun(@(x) x == 3, dataIndex.ProtocolDay));
+    data1 = {}; data2 = {}; data3 = {};
+    for fd = 1:length(trialTypes)
+        data1.(trialTypes{fd}) = input.CD.(trialTypes{fd})(:,ABMask1)./sum(input.CD.(trialTypes{fd})(:,ABMask1),1);
+        data2.(trialTypes{fd}) = input.CD.(trialTypes{fd})(:,ABMask2)./sum(input.CD.(trialTypes{fd})(:,ABMask2),1);
+        data3.(trialTypes{fd}) = input.CD.(trialTypes{fd})(:,ABMask3)./sum(input.CD.(trialTypes{fd})(:,ABMask3),1);
+    end
+    genotype1 = dataIndex.Genotype(ABMask1);
+    genotype2 = dataIndex.Genotype(ABMask2);
+    genotype3 = dataIndex.Genotype(ABMask3);
+
+elseif strcmp(tlabel, 'AB-DC-AB') % AB trials in AB-DC session
+    nSessions = 5;
+    ABMask1 = strcmp(dataIndex.Protocol, 'AB-DC') & (cellfun(@(x) x == 1, dataIndex.ProtocolDay));
+    ABMask2 = strcmp(dataIndex.Protocol, 'AB-DC') & (cellfun(@(x) x == 2, dataIndex.ProtocolDay));
+    ABMask3 = strcmp(dataIndex.Protocol, 'AB-DC') & (cellfun(@(x) x == 3, dataIndex.ProtocolDay));
+    ABMask4 = strcmp(dataIndex.Protocol, 'AB-DC') & (cellfun(@(x) x == 4, dataIndex.ProtocolDay));
+    ABMask5 = strcmp(dataIndex.Protocol, 'AB-DC') & (cellfun(@(x) x == 5, dataIndex.ProtocolDay));
+
+    data1 = {}; data2 = {}; data3 = {};data4 = {}; data5 = {};
+    for fd = 1:length(trialTypes)
+        data1.(trialTypes{fd}) = input.AB.(trialTypes{fd})(:,ABMask1)./sum(input.AB.(trialTypes{fd})(:,ABMask1),1);
+        data2.(trialTypes{fd}) = input.AB.(trialTypes{fd})(:,ABMask2)./sum(input.AB.(trialTypes{fd})(:,ABMask2),1);
+        data3.(trialTypes{fd}) = input.AB.(trialTypes{fd})(:,ABMask3)./sum(input.AB.(trialTypes{fd})(:,ABMask3),1);
+        data4.(trialTypes{fd}) = input.AB.(trialTypes{fd})(:,ABMask4)./sum(input.AB.(trialTypes{fd})(:,ABMask4),1);
+        data5.(trialTypes{fd}) = input.AB.(trialTypes{fd})(:,ABMask5)./sum(input.AB.(trialTypes{fd})(:,ABMask5),1);
+
+    end
+    genotype1 = dataIndex.Genotype(ABMask1);
+    genotype2 = dataIndex.Genotype(ABMask2);
+    genotype3 = dataIndex.Genotype(ABMask3);
+    genotype4 = dataIndex.Genotype(ABMask4);
+    genotype5 = dataIndex.Genotype(ABMask5);
+
+elseif strcmp(tlabel, 'AB-DC') % AB trials in AB-DC session
+    nSessions = 5;
+    ABMask1 = strcmp(dataIndex.Protocol, 'AB-DC') & (cellfun(@(x) x == 1, dataIndex.ProtocolDay));
+    ABMask2 = strcmp(dataIndex.Protocol, 'AB-DC') & (cellfun(@(x) x == 2, dataIndex.ProtocolDay));
+    ABMask3 = strcmp(dataIndex.Protocol, 'AB-DC') & (cellfun(@(x) x == 3, dataIndex.ProtocolDay));
+    ABMask4 = strcmp(dataIndex.Protocol, 'AB-DC') & (cellfun(@(x) x == 4, dataIndex.ProtocolDay));
+    ABMask5 = strcmp(dataIndex.Protocol, 'AB-DC') & (cellfun(@(x) x == 5, dataIndex.ProtocolDay));
+
+    data1 = {}; data2 = {}; data3 = {};data4 = {}; data5 = {};
+    for fd = 1:length(trialTypes)
+        data1.(trialTypes{fd}) = input.DC.(trialTypes{fd})(:,ABMask1)./sum(input.DC.(trialTypes{fd})(:,ABMask1),1);
+        data2.(trialTypes{fd}) = input.DC.(trialTypes{fd})(:,ABMask2)./sum(input.DC.(trialTypes{fd})(:,ABMask2),1);
+        data3.(trialTypes{fd}) = input.DC.(trialTypes{fd})(:,ABMask3)./sum(input.DC.(trialTypes{fd})(:,ABMask3),1);
+        data4.(trialTypes{fd}) = input.DC.(trialTypes{fd})(:,ABMask4)./sum(input.DC.(trialTypes{fd})(:,ABMask4),1);
+        data5.(trialTypes{fd}) = input.DC.(trialTypes{fd})(:,ABMask5)./sum(input.DC.(trialTypes{fd})(:,ABMask5),1);
+
+    end
+    genotype1 = dataIndex.Genotype(ABMask1);
+    genotype2 = dataIndex.Genotype(ABMask2);
+    genotype3 = dataIndex.Genotype(ABMask3);
+    genotype4 = dataIndex.Genotype(ABMask4);
+    genotype5 = dataIndex.Genotype(ABMask5);
+
+
+end
+
+if length(Genotypes) == 2
+    colors = {'red', 'black'};
+elseif length(Genotypes) == 3
+    colors = {'blue', 'red', 'black'};
+end
+
+%%
+for nSes = 1:nSessions
+    switch nSes
+        case 1
+            data = data1;
+            genotype = genotype1;
+        case 2
+            data = data2;
+            genotype = genotype2;
+        case 3
+            data = data3;
+            genotype = genotype3;
+        case 4
+            data = data4;
+            genotype = genotype4;
+        case 5
+            data = data5;
+            genotype = genotype5;
+        otherwise
+            error('Invalid nSes value');
+    end
+    figure;
+    figname = "Intertrial interval " + tlabel + " session " + nSes + " (s)";
+    sgtitle(figname)
+    subplot(2,2,1);
+    for geno = 1:length(Genotypes)
+        hold on;
+        y = nanmean(data.leftCorrect(:,strcmp(genotype,Genotypes{geno})),2);
+        sem = nanstd(data.leftCorrect(:,strcmp(genotype,Genotypes{geno})),0,2)/sqrt(sum(strcmp(genotype,Genotypes{geno})));
+        plot(edges(1:end-1),y,'Color',colors{geno});
+        errorshade(edges(1:end-1), y+sem, y-sem, colors{geno},0.3);
+    end
+    xlim([0 10])
+    ylim([-0.01, 0.5])
+    title('Left correct');
+    set(gca,'box','off')
+    subplot(2,2,2);
+    for geno = 1:length(Genotypes)
+        hold on;
+        y = nanmean(data.leftIncorrect(:,strcmp(genotype,Genotypes{geno})),2);
+        sem = nanstd(data.leftIncorrect(:,strcmp(genotype,Genotypes{geno})),0,2)/sum(strcmp(genotype,Genotypes{geno}));
+        plot(edges(1:end-1),y,'Color',colors{geno});
+        errorshade(edges(1:end-1), y+sem, y-sem, colors{geno},0.3);
+    end
+    xlim([0 10])
+    ylim([-0.01, 0.5])
+    title('Left incorrect');
+    set(gca,'box','off')
+    subplot(2,2,3);
+    for geno = 1:length(Genotypes)
+        hold on;
+        y = nanmean(data.rightCorrect(:,strcmp(genotype,Genotypes{geno})),2);
+        sem = nanstd(data.rightCorrect(:,strcmp(genotype,Genotypes{geno})),0,2)/sum(strcmp(genotype,Genotypes{geno}));
+        plot(edges(1:end-1),y,'Color',colors{geno});
+        errorshade(edges(1:end-1), y+sem, y-sem, colors{geno},0.3);
+    end
+    xlim([0 10])
+    ylim([-0.01, 0.5])
+    title('Right correct');
+    set(gca,'box','off')
+
+    subplot(2,2,4);
+    line_handles = gobjects(length(Genotypes),1);
+    for geno = 1:length(Genotypes)
+        hold on;
+        y = nanmean(data.rightIncorrect(:,strcmp(genotype,Genotypes{geno})),2);
+        sem = nanstd(data.rightIncorrect(:,strcmp(genotype,Genotypes{geno})),0,2)/sum(strcmp(genotype,Genotypes{geno}));
+        line_handles(geno) = plot(edges(1:end-1),y,'Color',colors{geno});
+        errorshade(edges(1:end-1), y+sem, y-sem, colors{geno},0.3);
+    end
+    xlim([0 10])
+    ylim([-0.01, 0.5])
+    title('Right incorrect');
+    set(gca,'box','off')
+
+    legend(line_handles, Genotypes, 'box', 'off', 'Color', 'none');
+
+    print(gcf,'-dpng',fullfile(savefigpath, figname));    %png format
+    %saveas(gcf, fullfile(BehPath, ['response-time_', tlabel]), 'fig');
+    %saveas(gcf, fullfile(BehPath, ['response-time_', tlabel]),'svg');
+end
+
+
+end
+
+

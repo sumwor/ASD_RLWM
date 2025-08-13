@@ -17,7 +17,7 @@ for pp = 1:nPlot
     subplot(2,3,pp)
 
     genotype_list = unique(genotype);
-   if strcmp(strain, 'Cntnap2')  % only look at WT and KO
+   if strcmp(strain, 'Cntnap2_KO')  % only look at WT and KO
         genotype_list = {'KO', 'WT'};
    elseif strcmp(strain, 'Shank3B')
        genotype_list={'HET', 'WT'};
@@ -57,11 +57,14 @@ for pp = 1:nPlot
     if ismember('HEM', genotype_list) % nlgn3
         Hetdata = data(strcmp(genotype, 'HEM'),columns_with_nans,pp);
         nHet = sum(strcmp(genotype, 'HEM'));
-    elseif ismember('KO', genotype_list) % if it's cntnap, compare KO with WT
+    elseif ismember('KO', genotype_list) & length(genotype_list)==3 % if it's cntnap, compare KO with WT
         Hetdata = data(strcmp(genotype, 'HET'),columns_with_nans,pp);
         nHet = sum(strcmp(genotype, 'HET'));
         KOdata = data(strcmp(genotype, 'KO'), columns_with_nans, pp);
         nKO = sum(strcmp(genotype,'KO'));
+    elseif ismember('KO', genotype_list) & length(genotype_list)==2
+        Hetdata = data(strcmp(genotype, 'KO'));
+        nHet = sum(strcmp(genotype, 'KO'));
     else
         Hetdata = data(strcmp(genotype, 'HET'),columns_with_nans,pp);
         nHet = sum(strcmp(genotype, 'HET'));
@@ -79,14 +82,26 @@ for pp = 1:nPlot
             block = [repmat((columns_with_nans)', size(WTdata, 1), 1); repmat((columns_with_nans)', size(Hetdata, 1), 1)];   % Quantile labels
         elseif length(genotype_list) == 3
             dat = [WTdata(:); Hetdata(:);KOdata(:)];
-            group = [repmat('WT')]
+            group = [repmat('WT')];
         end
         % Perform 2-way ANOVA
+
+        % removing NaNs
+        validIdx = ~isnan(dat);
+        dat = dat(validIdx);
+        group = group(validIdx);
+        block = block(validIdx);
+
         [p, tbl, stats] = anovan(dat, {group, block}, ...
-            'model', 'interaction', ...
+            'model', 'linear', ...
             'varnames', {'Group', 'Block'});
         % display p-value for group in the figure
-    
+        
+%         tblData = table(dat, categorical(group), categorical(block), ...
+%         'VariableNames', {'Y', 'Group', 'Block'});
+%         lme = fitlme(tblData, 'Y ~ Group*Block + (1|Block)');
+%         disp(anova(lme))
+
         text(3, 1, ['P(group):',num2str(p(1))], 'FontSize', 10 )
 
     end
@@ -94,7 +109,11 @@ for pp = 1:nPlot
         legend(genotype_list, 'Location', 'southeast')
         legend('Box','off')
         text(3, 0.1, ['WT ', num2str(nWT)], 'FontSize', 10 );
+        if ismember('KO', genotype_list) & length(genotype_list)==2
+            text(3, 0.2, ['KO ', num2str(nHet)], 'FontSize', 10 );
+        else
         text(3, 0.2, ['HET ', num2str(nHet)], 'FontSize', 10 );
+        end
     end
 end
 
@@ -147,11 +166,14 @@ title(['AUC for ', tlabel]);
     if ismember('HEM', genotype_list) % nlgn3
         Hetdata = perf_AUC(strcmp(genotype, 'HEM'),:)';
         nHet = sum(strcmp(genotype, 'HEM'));
-    elseif ismember('KO', genotype_list) % if it's cntnap, compare KO with WT
+    elseif ismember('KO', genotype_list) && length(genotype_list)==3 % if it's cntnap, compare KO with WT
         Hetdata = perf_AUC(strcmp(genotype, 'HET'),:)';
         nHet = sum(strcmp(genotype, 'HET'));
         KOdata = perf_AUC(strcmp(genotype, 'KO'), :)';
         nKO = sum(strcmp(genotype,'KO'));
+    elseif ismember('KO', genotype_list) & length(genotype_list)==2
+        Hetdata = perf_AUC(strcmp(genotype, 'KO'),:)';
+        nHet = sum(strcmp(genotype, 'KO'));
     else
         Hetdata = perf_AUC(strcmp(genotype, 'HET'),:)';
         nHet = sum(strcmp(genotype, 'HET'));

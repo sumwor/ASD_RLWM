@@ -17,8 +17,9 @@ else
   facealpha = 1;
 end
 
-x=x(:)';
-h=h(:)';
-l=l(:)';
+valid = ~isnan(h) & ~isnan(l);
+x=x(valid);
+h=h(valid)';
+l=l(valid)';
 
-h=fill([x fliplr(x)],[h fliplr(l)],c,'LineStyle','none','FaceAlpha',facealpha);
+fill([x fliplr(x)],[h fliplr(l)],c,'LineStyle','none','FaceAlpha',facealpha);

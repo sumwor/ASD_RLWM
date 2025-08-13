@@ -86,10 +86,12 @@ end
 
 xlim([-0.5 trialIntoPast(end)+0.5]);
 set(gca,'XDir','reverse')
-ylim([-1*1.5*maxY 1.5*maxY]);
-legend(b_label,'Location','Southeast');
-legend boxoff   % Remove the legend box
-set(legend, 'Color', 'none');
+if maxY~=0
+    ylim([-1*1.5*maxY 1.5*maxY]);
+end
+legend(b_label,'Location','Southeast', 'box', 'off', 'Color', 'none');
+
+
 xlabel('Trials into past')
 ylabel('Outcome history weight')
 title(tlabel);
