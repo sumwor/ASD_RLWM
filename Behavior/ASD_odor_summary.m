@@ -100,12 +100,14 @@ for ii = 1:nSubjects
 
             % find the switch point
             switchTrial = find(results{ss}.schedule == 3 | results{ss}.schedule == 4, 1);
-            results{ss} = results{ss}(switchTrial:end,:);
             results_AB{ss} = results{ss}(1:switchTrial-1,:);
+            results{ss} = results{ss}(switchTrial:end,:);
+            
             nAB_trials(ii, ss+3) = switchTrial-1;
             nCD_trials(ii, ss) = size(results{ss},1);
         else
             results{ss} = NaN;
+            results_AB{ss} = NaN;
         end
     end
     % calculate performance in quantile
@@ -114,7 +116,7 @@ for ii = 1:nSubjects
      % calculate performance in quantile on a session basis
     perf_CD_block_session(ii,:,:) = perf_in_block_session(results, protocol, blockLength);
 
-    perf_AB_CD_block_session(ii,:,:) = perf_in_block_session(results, 'AB-CD', blocklength);
+    perf_AB_CD_block_session(ii,:,:) = perf_in_block_session(results_AB, 'AB-CD', blockLength);
     % calculate performance in blocks
     %perf_CD_block(ii,:) = perf_in_block(results, protocol,blockLength);
 
@@ -128,7 +130,7 @@ for ii = 1:nSubjects
         protocol = 'DC';
         nSessions = 6;
         results = cell(nSessions,1);
-        results_AB = cell{nSessions, 1};
+        results_AB = cell(nSessions, 1);
         for ss =1 :nSessions
             if ss<= size(subDataIndex,1)
                 csvFile = fullfile(subDataIndex.BehPath{ss}, ...
@@ -139,7 +141,6 @@ for ii = 1:nSubjects
                 % find the switch point
                 switchCD =  find(results{ss}.schedule == 3 | results{ss}.schedule == 4, 1);
                 switchTrial = find(results{ss}.schedule == 5 | results{ss}.schedule == 6, 1);
-                results{ss} = results{ss}(switchTrial:end,:);
                 
                 if switchCD > 0
                     nAB_trials(ii, ss+6) = switchCD-1;
@@ -149,8 +150,11 @@ for ii = 1:nSubjects
                     nAB_trials(ii,ss+6) = switchTrial-1;
                     results_AB{ss} = results{ss}(1:switchTrial-1,:);
                 end
+                results{ss} = results{ss}(switchTrial:end,:);
+
                 nDC_trials(ii, ss) = size(results{ss},1);
             else
+                results{ss} = NaN;
                 results{ss} = NaN;
             end
         end

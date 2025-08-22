@@ -1,7 +1,7 @@
 function entropy_rate = get_stimulus_entropy(seq)
 
 % entropy rate via Markov chain
-
+seq = seq(~isnan(seq));
 if ismember(3, seq) & ~ismember(5, seq)
     seq = seq-2;
     seq = seq(seq>0);

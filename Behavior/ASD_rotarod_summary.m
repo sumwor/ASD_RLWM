@@ -1,4 +1,4 @@
-function ASD_rotarod_summary(rot_data, saverotpath)
+function ASD_rotarod_summary(rot_data, saverotpath, strain)
 
 %% simple plot of rotarod performance
 
@@ -26,16 +26,23 @@ end
 perf= 5 + ((80-5)/300) * perf;
 
 %geno_included = {'WT', 'HET'};
-geno_included = {'WT', 'HEM'};
+if strcmp(strain, 'Nlgn3')
+    geno_included = {'WT', 'HEM'};
+elseif strcmp(strain, 'Cntnap2_KO')
+    geno_included = {'WT', 'KO'};
+elseif strcmp(strain, 'TSC2') | strcmp(strain, 'ChD8')
+    geno_included = {'WT', 'HET'};
+end
 figure;
 
 mean_perf_WT = nanmean(perf(strcmp(geno_list, 'WT'),:),1);
 
 ste_perf_WT = nanstd(perf(strcmp(geno_list, 'WT'),:),1)/sum(strcmp(geno_list, 'WT'));
 
-mean_perf_HET = nanmean(perf(strcmp(geno_list, 'HEM'),:),1);
+het_geno = geno_included{2};
+mean_perf_HET = nanmean(perf(strcmp(geno_list, het_geno),:),1);
 
-ste_perf_HET = nanstd(perf(strcmp(geno_list, 'HEM'),:),1)/sum(strcmp(geno_list, 'WT'));
+ste_perf_HET = nanstd(perf(strcmp(geno_list, het_geno),:),1)/sum(strcmp(geno_list, 'WT'));
 
 
     %plot(mean_perf)
@@ -46,19 +53,16 @@ hold on;
 errorbar(x_plot, mean_perf_HET, ste_perf_HET, 'LineWidth', 2);
 
 %xticks([1,2,3,4]);
-legend('WT', 'HEM')
+legend('WT', het_geno)
 legend('box', 'off')
 ylabel('Performance');
 set(gca,'box','off')
 
 % ANOVA to test significance
-    if ismember('HEM', Genotype)
-        Hetdata = perf(strcmp(geno_list, 'HEM'),:)';
-        nHet = sum(strcmp(geno_list, 'HEM'));
-    else
-        Hetdata = perf(strcmp(geno_list, 'HET'),:)';
-        nHet = sum(strcmp(geno_list, 'HET'));
-    end
+
+        Hetdata = perf(strcmp(geno_list, het_geno),:)';
+        nHet = sum(strcmp(geno_list, het_geno));
+
     WTdata = perf(strcmp(geno_list, 'WT'),:)';
     nWT = sum(strcmp(geno_list, 'WT'));
 
@@ -74,11 +78,11 @@ set(gca,'box','off')
         'varnames', {'Group', 'Trial'});
     % display p-value for group in the figure
 
-    text(10, 80, ['P(group):',num2str(p(1))], 'FontSize', 10 )
-         
+    text(1, 55, ['P(geno):',num2str(p(1), '%.3g')], 'FontSize', 20 )
+         text(1, 53, ['P(learn):',num2str(p(2), '%.3g')], 'FontSize', 20 )
 
-    text(10, 30, ['WT ', num2str(nWT)], 'FontSize', 10 );
-    text(10, 28, ['HET ', num2str(nHet)], 'FontSize', 10 );
+    text(1, 40, ['WT ', num2str(nWT)], 'FontSize', 20 );
+    text(1, 38, ['HET ', num2str(nHet)], 'FontSize', 20 );
 % save the 
 
 print(gcf,'-dpng',fullfile(saverotpath, 'Rotarod performance'));    %png format

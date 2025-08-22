@@ -97,7 +97,10 @@ for b = 1:nFile
     else
         dataIndex.RewardSize(b) = {2};
     end
-
+    
+end
+dataIndex = sortrows(dataIndex, {'Animal', 'Session'});
+for b = 1:nFile
     % count protocol day
     currAnimal = dataIndex.Animal(b);
     if b> 1
@@ -123,11 +126,12 @@ for b = 1:nFile
         DCDay = DCDay + 1;
     end
 end
+
 % Create directory to store analysis
 if ~exist(behPath,'dir')
     mkdir(behPath);
 end
 
 % sort the dataIndex first by animal then session date
-dataIndex = sortrows(dataIndex, {'Animal', 'Session'});
+
 end

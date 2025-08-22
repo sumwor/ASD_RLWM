@@ -2,8 +2,15 @@ function plot_performance_block_session(data, strain, genotype, savefigpath, tla
 
 if strcmp(tlabel,'AB') | strcmp(tlabel, 'CD') | strcmp(tlabel, 'AB-CD')
     nPlot = 3;
-elseif strcmp(tlabel, 'DC') | strcmp(protocol, 'AB-DC')
+elseif strcmp(tlabel, 'DC') | strcmp(tlabel, 'AB-DC')
     nPlot = 6;
+end
+if contains(tlabel, 'reversed') | contains(tlabel, 'notreversed')
+    if contains(tlabel, 'AB') | contains(tlabel, 'CD')
+        nPlot = 3;
+    else
+        nPlot= 6;
+    end
 end
 
 % control for 1000 trials maximum
@@ -56,30 +63,31 @@ for pp = 1:nPlot
     % two-way anova
     if ismember('HEM', genotype_list) % nlgn3
         Hetdata = data(strcmp(genotype, 'HEM'),columns_with_nans,pp);
-        nHet = sum(strcmp(genotype, 'HEM'));
+        nHet = sum(~all(isnan(Hetdata), 2));
     elseif ismember('KO', genotype_list) & length(genotype_list)==3 % if it's cntnap, compare KO with WT
         Hetdata = data(strcmp(genotype, 'HET'),columns_with_nans,pp);
-        nHet = sum(strcmp(genotype, 'HET'));
+        nHet = sum(~all(isnan(Hetdata), 2));
         KOdata = data(strcmp(genotype, 'KO'), columns_with_nans, pp);
-        nKO = sum(strcmp(genotype,'KO'));
+        nKO = sum(~all(isnan(KOdata), 2));
     elseif ismember('KO', genotype_list) & length(genotype_list)==2
-        Hetdata = data(strcmp(genotype, 'KO'));
-        nHet = sum(strcmp(genotype, 'KO'));
+        Hetdata = data(strcmp(genotype, 'KO'),columns_with_nans,pp);
+        nHet = sum(~all(isnan(Hetdata), 2));
     else
         Hetdata = data(strcmp(genotype, 'HET'),columns_with_nans,pp);
-        nHet = sum(strcmp(genotype, 'HET'));
+        nHet = sum(~all(isnan(Hetdata), 2));
     end
     WTdata = data(strcmp(genotype, 'WT'),columns_with_nans,pp);
-    nWT = sum(strcmp(genotype, 'WT'));
+    nWT = sum(~all(isnan(WTdata), 2));
     
     % check if there is empty data (not enough sessions/animals)
     if ~isempty(WTdata) && ~isempty(Hetdata)
         if length(genotype_list) == 2
+            WTdata = WTdata'; Hetdata = Hetdata';
             dat = [WTdata(:); Hetdata(:)];
     
         % Create grouping variables
             group = [repmat({'WT'}, numel(WTdata), 1); repmat({'HET'}, numel(Hetdata), 1)]; % Group labels
-            block = [repmat((columns_with_nans)', size(WTdata, 1), 1); repmat((columns_with_nans)', size(Hetdata, 1), 1)];   % Quantile labels
+            block = [repmat((columns_with_nans)', size(WTdata, 2), 1); repmat((columns_with_nans)', size(Hetdata, 2), 1)];   % Quantile labels
         elseif length(genotype_list) == 3
             dat = [WTdata(:); Hetdata(:);KOdata(:)];
             group = [repmat('WT')];
@@ -102,17 +110,17 @@ for pp = 1:nPlot
 %         lme = fitlme(tblData, 'Y ~ Group*Block + (1|Block)');
 %         disp(anova(lme))
 
-        text(3, 1, ['P(group):',num2str(p(1))], 'FontSize', 10 )
-
+       text(1, 0.25, ['P(geno): ', num2str(p(1), '%.3g')], 'FontSize', 15)
+        text(1, 0.15, ['P(learn): ', num2str(p(2), '%.3g')], 'FontSize', 15)
     end
     if pp==nPlot
-        legend(genotype_list, 'Location', 'southeast')
+        legend(genotype_list, 'Location', 'east','FontSize', 14)
         legend('Box','off')
-        text(3, 0.1, ['WT ', num2str(nWT)], 'FontSize', 10 );
+        text(1, 1, ['WT ', num2str(nWT)], 'FontSize', 10 );
         if ismember('KO', genotype_list) & length(genotype_list)==2
-            text(3, 0.2, ['KO ', num2str(nHet)], 'FontSize', 10 );
+            text(5, 1, ['KO ', num2str(nHet)], 'FontSize', 12 );
         else
-        text(3, 0.2, ['HET ', num2str(nHet)], 'FontSize', 10 );
+        text(5, 1, ['HET ', num2str(nHet)], 'FontSize', 12 );
         end
     end
 end
@@ -165,18 +173,18 @@ title(['AUC for ', tlabel]);
 % ANOVA
     if ismember('HEM', genotype_list) % nlgn3
         Hetdata = perf_AUC(strcmp(genotype, 'HEM'),:)';
-        nHet = sum(strcmp(genotype, 'HEM'));
+             nHet = sum(~all(isnan(Hetdata), 2));
     elseif ismember('KO', genotype_list) && length(genotype_list)==3 % if it's cntnap, compare KO with WT
         Hetdata = perf_AUC(strcmp(genotype, 'HET'),:)';
-        nHet = sum(strcmp(genotype, 'HET'));
+             nHet = sum(~all(isnan(Hetdata), 2));
         KOdata = perf_AUC(strcmp(genotype, 'KO'), :)';
-        nKO = sum(strcmp(genotype,'KO'));
+             nHet = sum(~all(isnan(KOdata), 2));
     elseif ismember('KO', genotype_list) & length(genotype_list)==2
         Hetdata = perf_AUC(strcmp(genotype, 'KO'),:)';
-        nHet = sum(strcmp(genotype, 'KO'));
+             nHet = sum(~all(isnan(Hetdata), 2));
     else
         Hetdata = perf_AUC(strcmp(genotype, 'HET'),:)';
-        nHet = sum(strcmp(genotype, 'HET'));
+             nHet = sum(~all(isnan(Hetdata), 2));
     end
     WTdata = perf_AUC(strcmp(genotype, 'WT'),:)';
     nWT = sum(strcmp(genotype, 'WT'));
@@ -201,7 +209,8 @@ title(['AUC for ', tlabel]);
             'varnames', {'Group', 'Session'});
         % display p-value for group in the figure
     
-        text(3, -0.1, ['P(group):',num2str(p(1))], 'FontSize', 10 )
+        text(1.5, 0.5, ['P(geno): ', num2str(p(1), '%.3g')], 'FontSize', 20 )
+        text(1.5, 0.45, ['P(reversal): ', num2str(p(2), '%.3g')], 'FontSize', 20 )
     end
 
 print(gcf,'-dpng',fullfile(savefigpath,['Performance AUC in the  ', tlabel, ' sessions in block-session']));    %png format

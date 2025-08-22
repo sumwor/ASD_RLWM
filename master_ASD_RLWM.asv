@@ -12,7 +12,7 @@ root_dir = 'Z:\HongliWang\Juvi_ASD Deterministic';
 strain_list = {'ChD8'; 'Nlgn3'; 'Cntnap2_KO'; 'TSC2';'TSC2_adult';'Shank3B'; 'Syngap'};
 
 %% add for loop later
-strainNum =2;
+strainNum =1;
 
 % save the dataIndex data
 dataIndexPath = fullfile(root_dir, strain_list{strainNum},'dataIndex.csv');
@@ -282,20 +282,22 @@ ASD_summray_RL(dataIndex, animalList, savesummaryfolder)
 
 ASD_odor_summary(dataIndex, strain_list{strainNum}, savefigpath, savedatapath);
 
+%% check weight for the first 3 AB sessions
+w
 %% compare WT performance across strain
 
 ASD_odor_WT_summary(strain_list, root_dir);
 
 
 %% rotarod performance
-strainNum =2;
+strainNum =1;
 rotarod_path = fullfile(root_dir, strain_list{strainNum}, 'Data','rotarod.csv');
 saverotpath = fullfile(root_dir, strain_list{strainNum},'Summary', 'Rotarod');
 if ~exist(saverotpath)
     mkdir(saverotpath);
 end
 rot_data = readtable(rotarod_path);
-ASD_rotarod_summary(rot_data, saverotpath);
+ASD_rotarod_summary(rot_data, saverotpath, strain_list{strainNum});
 
 %% correlate performance between odor and rotarod
 ASD_odor_rotarod(strain_list,strainNum, root_dir);

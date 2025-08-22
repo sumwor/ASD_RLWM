@@ -45,16 +45,16 @@ end
 tlabel=strcat('Subject=',animal);
 
 cd(savedatafolder)
-step_back = 15;
-[lregRCUC_output, negloglike, bic, nlike]=logreg_RCUC(concatenate_AB,step_back);
-plot_logreg(lregRCUC_output,tlabel);
-print(gcf,'-dpng',['logregRCUC-AB',animal]);    %png format
-saveas(gcf, 'logregCRInt', 'fig');
-
-[lregCRInt_output, negloglike, bic, nlike]=logreg_CRInt(resultdf,step_back);
-plot_logreg(lregCRInt_output,tlabel);
-print(gcf,'-dpng','logregCRInt');    %png format
-saveas(gcf, 'logregCRInt', 'fig');
+% step_back = 15;
+% [lregRCUC_output, negloglike, bic, nlike]=logreg_RCUC(concatenate_AB,step_back);
+% plot_logreg(lregRCUC_output,tlabel);
+% print(gcf,'-dpng',['logregRCUC-AB',animal]);    %png format
+% saveas(gcf, 'logregCRInt', 'fig');
+% 
+% [lregCRInt_output, negloglike, bic, nlike]=logreg_CRInt(resultdf,step_back);
+% plot_logreg(lregCRInt_output,tlabel);
+% print(gcf,'-dpng','logregCRInt');    %png format
+% saveas(gcf, 'logregCRInt', 'fig');
 
 
 %% reinforcement learning
