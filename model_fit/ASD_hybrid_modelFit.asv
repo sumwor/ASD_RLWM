@@ -1,0 +1,281 @@
+function ASD_hybrid_modelFit(dataIndex, files,savedatapath, savefigpath)
+
+% fit the models for different sessions
+odors = {'AB', 'CD', 'DC', 'AB-CD', 'AB-DC'};
+protocols = {'AB', 'AB-CD','AB-DC', 'AB-CD', 'AB-DC'};
+trialsList = {'nAB', 'nCD', 'nDC', 'nAB', 'nAB'};
+nSessions = [3, 3, 5, 3, 5];
+
+% test if out first
+nFiles = length(files);
+
+for ii = 1:6
+    prepDataPath = files{ii};
+    
+    % for AB2, AB3, CD1, CD3, add a forgetting parameter between sessions 
+    % for Q value
+
+    fit_result = fit_hybrid_bias_models(prepDataPath, savedatapath,dataIndex);
+
+
+
+    %prepData = load(prepDataPath);
+    %% make individual session plots
+    filename = regexp(prepDataPath, '(?<=data4model).*', 'match');
+    label = filename{1}(1:end-4);
+    modelNum = 1;
+    plot_hybrid_fit(fit_result, savefigpath, label, modelNum)
+
+    % model estimation based on fitted parameters
+    % P_correct
+    % psychometric curve
+    estimate_Latent_fit(prepDataPath, fit_result, dataIndex, label, modelNum, savefigpath)
+    
+    psymodelName = fullfile(savedatapath, ['PsyFit',label, '.csv']);
+
+    %rename_file(psymodelName,label,dataIndex)
+    compare_hybrid_psymodels(fit_result, psymodelName,label, savefigpath)
+    plot_psy_fit(psymodelName, dataIndex, savefigpath, label)
+    estimate_Latent_fit_psy(psymodelName, dataIndex, label, savefigpath)
+    
+    % scatter plot of last weight from last session and new weight from new
+    % session
+
+    % put mixed linear result in different sessions together
+end
+
+
+for ii = 1:6
+    prepDataPath = files{ii};
+        filename = regexp(prepDataPath, '(?<=data4model).*', 'match');
+    label = filename{1}(1:end-4);
+ psymodelName = fullfile(savedatapath, ['PsyFit',label, '.csv']);
+estimate_Latent_fit_psy(psymodelName, dataIndex, label, savefigpath)
+end
+
+
+% 3 coefficient + baseline for 6 sessions in WT/HET genotypes 
+vars = {'response time', 'sample time', 'decision time', 'ITI'};
+structVar = {'rt', 'st', 'dt', 'iti'};
+
+for ii = 1:6
+    prepDataPath = files{ii};
+    filename = regexp(prepDataPath, '(?<=data4model).*', 'match');
+    label = filename{1}(1:end-4);
+    psymodelName = fullfile(savedatapath, ['PsyFit',label, '.csv']);
+    fit_result = fit_hybrid_bias_models(prepDataPath, savedatapath,dataIndex);
+    if ii == 1
+        psy_fit = readtable(psymodelName);
+        subjects = psy_fit.Animal;
+        nSubject = length(subjects);
+        genotypes = fit_result.genotypes;
+        weight_session = nan(nSubject, 6, 2,  3);
+        GLMr = struct;
+        for vv = 1:length(vars)
+            currVar = vars{vv};
+            GLMr.(structVar{vv}) = struct;
+            GLMr.(structVar{vv}).coeff_WT = nan(length(vars),6);
+            GLMr.(structVar{vv}).SE_WT = nan(length(vars), 6);
+            GLMr.(structVar{vv}).coeff_Mut = nan(length(vars),6);
+            GLMr.(structVar{vv}).SE_Mut = nan(length(vars), 6);
+            GLMr.(structVar{vv}).p_WT = nan(length(vars), 6);
+            GLMr.(structVar{vv}).p_Mut = nan(length(vars), 6);
+            GLMr.(structVar{vv}).p_geno = nan(length(vars), 6);
+        end
+
+
+    end
+
+    % load weight
+    for ss = 1:nSubject
+        analysis = dataIndex.BehPath(strcmp(dataIndex.Animal,num2str(subjects(ss))));
+        modelpath = fullfile(analysis{1},'latent',['psy_fit_',label,'.json']);
+        if exist(modelpath)
+            txt = fileread(modelpath);
+            psy_latent = jsondecode(txt);
+            if size(psy_latent.wMode,2) > 200
+                weight_session(ss, ii, 1,:) = mean(psy_latent.wMode(:,1:50),2);
+                weight_session(ss,ii,2,:) = mean(psy_latent.wMode(:,end-49:end),2);
+            end
+        end
+
+    end
+
+    % load GLM results
+
+    for vv = 1:length(vars)
+        currVar = vars{vv};
+
+        [pathstr, name, ext] = fileparts(psymodelName);
+        savedatapath = pathstr;
+        GLM_results= fullfile(savedatapath, ['glm_coeff_summary_',currVar,'_', label]);
+        load(GLM_results);
+        % load baseline
+        GLMr.(structVar{vv}).coeff_WT(:,ii) = coef_summary.WT_est;
+        GLMr.(structVar{vv}).SE_WT(:,ii) = coef_summary.WT_SE;
+        GLMr.(structVar{vv}).coeff_Mut(:,ii) = coef_summary.HET_est;
+        GLMr.(structVar{vv}).SE_mut(:,ii) = coef_summary.HET_SE;
+        GLMr.(structVar{vv}).p_WT(:,ii) = coef_summary.WT_p;
+        GLMr.(structVar{vv}).p_Mut(:,ii) = coef_summary.HET_p;
+        GLMr.(structVar{vv}).p_geno(:,ii) = coef_summary.diff_p;
+
+
+    end
+
+end
+
+All_geno = unique(genotypes);
+
+if sum(contains(All_geno, 'KO'))>0
+    mutGene = 'KO';
+elseif sum(contains(All_geno,'HET'))>0
+    mutGene = 'HET';
+elseif sum(contains(All_geno,'HEM'))>0
+    mutGene = 'HEM';
+end
+
+
+
+% scatter plot of last sessions end weight and next session's start weight
+WTMask = strcmp(genotypes,'WT');
+mutMask = strcmp(genotypes,mutGene);
+
+% get percentage weight (weight next session trial 1-50 / weight last session
+% trial last 1-60
+
+WT_weight1 = abs(squeeze(weight_session(WTMask, 1, 2, :))./squeeze(weight_session(WTMask, 1, 1, :)));
+WT_weight2 = abs((squeeze(weight_session(WTMask, 2, 1, :))-squeeze(weight_session(WTMask, 1, 2, :)))./squeeze(weight_session(WTMask, 1, 2, :)));
+WT_weight3 = abs((squeeze(weight_session(WTMask, 3, 1, :))-squeeze(weight_session(WTMask, 2, 2, :)))./squeeze(weight_session(WTMask, 2, 2, :)));
+
+mut_weight1 = abs(squeeze(weight_session(mutMask, 1, 2, :))./squeeze(weight_session(mutMask, 1, 1, :)));
+mut_weight2 = abs((squeeze(weight_session(mutMask, 2, 1, :))-squeeze(weight_session(mutMask, 1, 2, :)))./squeeze(weight_session(mutMask, 1, 2, :)));
+mut_weight3 = abs((squeeze(weight_session(mutMask, 3, 1, :))-squeeze(weight_session(mutMask, 2, 2, :)))./squeeze(weight_session(mutMask, 2, 2, :)));
+
+colWT = [0.3 0.6 0.9];
+colMut = [0.9 0.4 0.4];
+
+weights = {log10(WT_weight2), log10(WT_weight3); log10(mut_weight2), log10(mut_weight3)};
+weightNames = {'Session 2/1','Sesion 3/2'};
+varNames = {'Bias','Stim','Stick'};
+
+figure;
+sgtitle('Percentage weight change in the next day')
+
+for w = 1:2   % 1=weight2, 2=weight3
+    for v = 1:3   % 1=bias, 2=stim, 3=stick
+        subplot(3,2,(v-1)*2 + w); hold on;
+
+        % WT and Mut data
+        wtData = squeeze(weights{1,w}(:,v));
+        mutData = squeeze(weights{2,w}(:,v));
+
+        % remove outliers
+        wtNoOut = rmoutliers(wtData);
+        mutNoOut = rmoutliers(mutData);
+
+        % combine
+        data = [wtNoOut; mutNoOut];
+        group = [repmat({'WT'},numel(wtNoOut),1); repmat({'Mut'},numel(mutNoOut),1)];
+        xpos = [ones(size(wtNoOut)); 2*ones(size(mutNoOut))];
+
+        % boxplot without showing outliers
+        boxplot(data, xpos, ...
+                'Colors',[colWT; colMut], ...
+                'Symbol','')
+
+        % scatter overlay
+        scatter(ones(size(wtNoOut)) + (rand(size(wtNoOut))-0.5)*0.2, wtNoOut, ...
+                30, colWT, 'filled', 'MarkerFaceAlpha',0.6)
+        scatter(2*ones(size(mutNoOut)) + (rand(size(mutNoOut))-0.5)*0.2, mutNoOut, ...
+                30, colMut, 'filled', 'MarkerFaceAlpha',0.6)
+
+        % adjust ylim to exclude outliers
+        ymin = min(data); ymax = max(data);
+        padding = 0.1*(ymax-ymin);
+        ylim([ymin-padding, ymax+padding]);
+
+        set(gca,'XTickLabel',{'WT','Mut'})
+        if w==1
+            ylabel(varNames{v})
+        end
+        if v==1
+            if w==1
+            title('Session 2/1')
+            elseif w==2
+                title('Session 3/2')
+            end
+        end
+
+        set(gca,'Box','off')
+    end
+end
+
+
+%% plot glm result as a function of session
+
+% Assume you have loaded GLMr.(structVar{vv}) as described
+sessions = 1:3;  % first 3 sessions only
+predictors = {'Baseline','Bias','Stimulus','Stick'};
+
+for vv = 1:length(vars)
+figure;
+sgtitle(['GLM coefficient of weights (AB) on ', vars{vv}])
+for pp = 1:4
+    subplot(2,2,pp); hold on;
+
+    % Extract WT & Mut coefficients and SE
+    coeff_WT  = GLMr.(structVar{vv}).coeff_WT(pp,sessions);
+    se_WT     = GLMr.(structVar{vv}).SE_WT(pp,sessions);
+    coeff_Mut = GLMr.(structVar{vv}).coeff_Mut(pp,sessions);
+    se_Mut    = GLMr.(structVar{vv}).SE_mut(pp,sessions);
+
+    % Plot with error bars
+    errorbar(sessions, coeff_WT, se_WT, '-o', 'LineWidth', 3);
+    errorbar(sessions, coeff_Mut, se_Mut, '-o', 'LineWidth', 3);
+    xlim([0.5 3.5])
+    % FDR-corrected p-values
+    pvals0_corr = [GLMr.rt.p_WT(pp,sessions); GLMr.rt.p_Mut(pp,sessions)]';
+    %pvals0_corr = mafdr(pvals0(:));   % FDR correction
+    %pvals0_corr = reshape(pvals0_corr,[],2);
+
+    pvalsDiff_corr = GLMr.rt.p_geno(pp,sessions);
+
+    % Add significance markers
+    for ss = 1:numel(sessions)
+        y = max([coeff_WT(ss)+se_WT(ss), coeff_Mut(ss)+se_Mut(ss)]) * 1.1;
+
+        % WT vs 0
+        if pvals0_corr(ss,1) < 0.05
+            text(sessions(ss)-0.1, y, '*','Color','b','FontSize',30);
+        end
+        % Mut vs 0
+        if pvals0_corr(ss,2) < 0.05
+            text(sessions(ss)+0.1, y, '*','Color','r','FontSize',30);
+        end
+        % WT vs Mut
+        if pvalsDiff_corr(ss) < 0.05
+            plot(sessions(ss), y*1.05, 'k*','MarkerSize',8);
+        end
+    end
+
+    title(predictors{pp});
+    if pp>2
+        xlabel('Session');
+    end
+    if pp == 1 | pp == 3
+    ylabel('Coefficient');
+    end
+    if pp == 4
+        lgd = legend({'WT',mutGene},'Location','best');
+        set(lgd,'Box','off','Color','none');
+    end
+end
+
+
+% save the figure
+    print(gcf,'-dpng',fullfile(savefigpath,'latent', ['GLM coefficient of weights (AB) on ', vars{vv}]));    %png format
+    saveas(gcf, fullfile(savefigpath,'latent', ['GLM coefficient of weights (AB) on ', vars{vv}]), 'fig');
+    saveas(gcf, fullfile(savefigpath, 'latent',['GLM coefficient of weights (AB) on ', vars{vv}]),'svg');
+end
+
+end

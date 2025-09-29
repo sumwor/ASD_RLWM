@@ -55,7 +55,7 @@ for pp = 1:nPlot
         end
 
     end
-    ylim([0, 1]);
+    %ylim([0, 1]);
     %xticks([1,2,3,4]);
     %legend(genotype_list)
     title(['Session ', num2str(pp)])

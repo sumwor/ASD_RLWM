@@ -1,8 +1,8 @@
-clear all;
+function fit_result = fit_hybrid_bias_models(fileName, savefilename)
 
-addpath('LLHfunctions/')
-
-load('TSC2_AB_D1.mat')
+% read the data prepared before, fit the hybrid model on 
+%fileName = 'Z:\HongliWang\Juvi_ASD Deterministic\TSC2\Summary\Results\data4modelAB-AB1.mat';
+load(fileName);
 subjects = unique(X.Animal_ID);
 % subjects = cellfun(@(x) str2double(x(4:end)), subjects);
 
@@ -25,14 +25,14 @@ rec_sample = @(x) unifrnd(0, 1); % Sampling function for recover parameter (T_0^
 Ms = [];
 
 % RL_eps 
-curr_model = [];
-curr_model.name = 'RL_epsilon';
-curr_model.pMin = [1e-6 1e-6 1e-6 -1 1e-6];
-curr_model.pMax = [20 1 1 1 1];
-curr_model.pdfs = {beta_sample, alpha_sample, alpha_sample, stick_sample, eps_sample}; % Sampling functions for model parameters
-curr_model.pnames = {'beta','alpha-','alpha+','stick','epsilon'};
-
-Ms{1}=curr_model;
+% curr_model = [];
+% curr_model.name = 'RL_epsilon';
+% curr_model.pMin = [1e-6 1e-6 1e-6 -1 1e-6];
+% curr_model.pMax = [20 1 1 1 1];
+% curr_model.pdfs = {beta_sample, alpha_sample, alpha_sample, stick_sample, eps_sample}; % Sampling functions for model parameters
+% curr_model.pnames = {'beta','alpha-','alpha+','stick','epsilon'};
+% 
+% Ms{1}=curr_model;
 
 % % RL1s_lapse
 % curr_model = [];
@@ -45,34 +45,34 @@ Ms{1}=curr_model;
 % Ms{2}=curr_model;
 
 % RL4s
-curr_model = [];
-curr_model.name = 'a0b3s';
-curr_model.pMin = [1e-6 1e-6 -1 -1 -1];
-curr_model.pMax = [20 1 1 1 1];
-curr_model.pdfs = {beta_sample, alpha_sample, stick_sample, stick_sample, stick_sample}; % Sampling functions for model parameters
-curr_model.pnames = {'beta','alpha+','s1','s2','s3'};
-
-Ms{2}=curr_model;
-
-% RL4s_hybrid
-curr_model = [];
-curr_model.name = 'a0b3s_hybrid';
-curr_model.pMin = [1e-6 1e-6 -1 -1 -1 1e-6 1e-6 1e-6];
-curr_model.pMax = [20 1 1 1 1 1 1 1];
-curr_model.pdfs = {beta_sample, alpha_sample, stick_sample, stick_sample, stick_sample, lapse_sample, rec_sample, bias_sample}; % Sampling functions for model parameters
-curr_model.pnames = {'beta','alpha+','s1','s2','s3','lapse','rec','bias'};
-
-Ms{3}=curr_model;
+% curr_model = [];
+% curr_model.name = 'a0b3s';
+% curr_model.pMin = [1e-6 1e-6 -1 -1 -1];
+% curr_model.pMax = [20 1 1 1 1];
+% curr_model.pdfs = {beta_sample, alpha_sample, stick_sample, stick_sample, stick_sample}; % Sampling functions for model parameters
+% curr_model.pnames = {'beta','alpha+','s1','s2','s3'};
+% 
+% Ms{2}=curr_model;
 
 % RL4s_hybrid
-curr_model = [];
-curr_model.name = 'a0b2s_hybrid';
-curr_model.pMin = [1e-6 1e-6 -1 -1 1e-6 1e-6 1e-6];
-curr_model.pMax = [20 1 1 1 1 1 1];
-curr_model.pdfs = {beta_sample, alpha_sample, stick_sample, stick_sample, lapse_sample, rec_sample, bias_sample}; % Sampling functions for model parameters
-curr_model.pnames = {'beta','alpha+','s1','s2','lapse','rec','bias'};
+% curr_model = [];
+% curr_model.name = 'a0b3s_hybrid';
+% curr_model.pMin = [1e-6 1e-6 -1 -1 -1 1e-6 1e-6 1e-6];
+% curr_model.pMax = [20 1 1 1 1 1 1 1];
+% curr_model.pdfs = {beta_sample, alpha_sample, stick_sample, stick_sample, stick_sample, lapse_sample, rec_sample, bias_sample}; % Sampling functions for model parameters
+% curr_model.pnames = {'beta','alpha+','s1','s2','s3','lapse','rec','bias'};
+% 
+% Ms{3}=curr_model;
 
-Ms{4}=curr_model;
+% RL4s_hybrid
+% curr_model = [];
+% curr_model.name = 'a0b2s_hybrid';
+% curr_model.pMin = [1e-6 1e-6 -1 -1 1e-6 1e-6 1e-6];
+% curr_model.pMax = [20 1 1 1 1 1 1];
+% curr_model.pdfs = {beta_sample, alpha_sample, stick_sample, stick_sample, lapse_sample, rec_sample, bias_sample}; % Sampling functions for model parameters
+% curr_model.pnames = {'beta','alpha+','s1','s2','lapse','rec','bias'};
+% 
+% Ms{4}=curr_model;
 
 % RL4s_hybrid
 curr_model = [];
@@ -82,17 +82,17 @@ curr_model.pMax = [20 1 1 1 1 1];
 curr_model.pdfs = {beta_sample, alpha_sample, stick_sample, lapse_sample, rec_sample, bias_sample}; % Sampling functions for model parameters
 curr_model.pnames = {'beta','alpha+','s1','lapse','rec','bias'};
 
-Ms{5}=curr_model;
+Ms{1}=curr_model;
 
 % RL4s_hybrid
-curr_model = [];
-curr_model.name = 'a01s_hybrid';
-curr_model.pMin = [1e-6 -1 1e-6 1e-6 1e-6];
-curr_model.pMax = [1 1 1 1 1];
-curr_model.pdfs = {alpha_sample, stick_sample, lapse_sample, rec_sample, bias_sample}; % Sampling functions for model parameters
-curr_model.pnames = {'alpha+','s1','lapse','rec','bias'};
-
-Ms{6}=curr_model;
+% curr_model = [];
+% curr_model.name = 'a01s_hybrid';
+% curr_model.pMin = [1e-6 -1 1e-6 1e-6 1e-6];
+% curr_model.pMax = [1 1 1 1 1];
+% curr_model.pdfs = {alpha_sample, stick_sample, lapse_sample, rec_sample, bias_sample}; % Sampling functions for model parameters
+% curr_model.pnames = {'alpha+','s1','lapse','rec','bias'};
+% 
+% Ms{6}=curr_model;
 
 %% Fit models
 for sess = 1
@@ -107,8 +107,8 @@ for sess = 1
         fitmeasures = cell(length(subjects), 1);
         fitparams = cell(length(subjects), 1);
     
-%         for k = 1:length(subjects) % no parallel processing
-        parfor k = 1:length(subjects) % parallel processing
+        for k = 1:length(subjects) % no parallel processing
+        %parfor k = 1:length(subjects) % parallel processing
             s = subjects(k);
             T = find((X.Animal_ID==s) & X.schedule<3);
             this_data = [X.schedule(T) X.action(T) X.reward1(T)>0];
@@ -174,84 +174,84 @@ for sess = 1
         All_fits(:, :, i) = temp{i};
     end
 
-    save(['FitModels_TSC_sess',num2str(sess)])
+    save(savedatapath, 'All_fits')
 end
 
 %% Plot fit (AIC)
-clear all
-sess = 1;
-load(['FitModels_TSC_sess',num2str(sess)])
-
-AICs = squeeze(All_fits(:, 3, :));
-mAICs = AICs - repmat(mean(AICs, 2), 1, size(AICs, 2));
-
-figure('Position', [300 300 900 400])
-subplot(1, 2, 1)
-hold on
-bar(mean(mAICs))
-errorbar(mean(mAICs), std(mAICs) / sqrt(size(mAICs, 1)))
-xticks(1:length(Ms));
-xticklabels(cellfun(@(x) x.name, Ms, 'UniformOutput', false));
-set(gca, 'TickLabelInterpreter', 'none')
-ylabel('\Delta AIC')
-title('Models')
-
-% static_model_ind = find(contains(cellfun(@(x) x.name, Ms, 'UniformOutput', false), 'static'));
-% dynamic_model_ind = find(contains(cellfun(@(x) x.name, Ms, 'UniformOutput', false), 'dynamic'));
-static_model_ind = find(strcmp(cellfun(@(x) x.name, Ms, 'UniformOutput', false), 'a0b3s'));
-dynamic_model_ind = find(contains(cellfun(@(x) x.name, Ms, 'UniformOutput', false), 'a0b3s_hybrid'));
-p = signrank(AICs(:, dynamic_model_ind), AICs(:, static_model_ind), 'tail', 'left');
-
-subplot(1, 2, 2)
-yline(0, '--')
-hold on
-plot(sort(AICs(:, dynamic_model_ind) - AICs(:, static_model_ind), 'descend'), '.', 'MarkerSize', 15)
-title('a0b3s vs. a0b3s hybrid')
-ylabel('\Delta AIC')
-xlabel('sorted participant')
-set(gca, 'fontsize', 14)
-sgtitle(['AB Sess ' num2str(sess) ' (p=' num2str(p) ')'])
-
-% Save figures (Fig 4)
-saveas(gcf, ['plots/TSC_fit_sess', num2str(sess), '.png'])
-saveas(gcf, ['plots/TSC_fit_sess', num2str(sess), '.svg'])
-
-%% Plot fit (BIC)
-clear all
-sess = 1;
-load(['FitModels_TSC_sess',num2str(sess)])
-
-BICs = squeeze(All_fits(:, 4, :));
-mBICs = BICs - repmat(mean(BICs, 2), 1, size(BICs, 2));
-
-figure('Position', [300 300 900 400])
-subplot(1, 2, 1)
-hold on
-bar(mean(mBICs))
-errorbar(mean(mBICs), std(mBICs) / sqrt(size(mBICs, 1)))
-xticks(1:length(Ms));
-xticklabels(cellfun(@(x) x.name, Ms, 'UniformOutput', false));
-set(gca, 'TickLabelInterpreter', 'none')
-ylabel('\Delta BIC')
-title('Models')
-
-% static_model_ind = find(contains(cellfun(@(x) x.name, Ms, 'UniformOutput', false), 'static'));
-% dynamic_model_ind = find(contains(cellfun(@(x) x.name, Ms, 'UniformOutput', false), 'dynamic'));
-static_model_ind = find(contains(cellfun(@(x) x.name, Ms, 'UniformOutput', false), 'a0b1s_hybrid'));
-dynamic_model_ind = find(contains(cellfun(@(x) x.name, Ms, 'UniformOutput', false), 'a0b3s_hybrid'));
-% dynamic_model_ind = 2;
-[p, h, z] = signrank(BICs(:, dynamic_model_ind), BICs(:, static_model_ind));
-
-subplot(1, 2, 2)
-yline(0, '--')
-hold on
-plot(sort(BICs(:, dynamic_model_ind) - BICs(:, static_model_ind), 'descend'), '.', 'MarkerSize', 15)
-title('a0b1s vs. a0b2s hybrid')
-ylabel('\Delta BIC')
-xlabel('sorted participant')
-set(gca, 'fontsize', 14)
-sgtitle(['AB Sess ' num2str(sess) ' (p=' num2str(p) ', z=' num2str(z.zval) ')'])
-
-% Save figures (Fig 4)
-saveas(gcf, ['plots/TSC_fit_sess', num2str(sess), '_BIC.png'])
-saveas(gcf, ['plots/TSC_fit_sess', num2str(sess), '_BIC.svg'])
+% clear all
+% sess = 1;
+% load(['FitModels_TSC_sess',num2str(sess)])
+% 
+% AICs = squeeze(All_fits(:, 3, :));
+% mAICs = AICs - repmat(mean(AICs, 2), 1, size(AICs, 2));
+% 
+% figure('Position', [300 300 900 400])
+% subplot(1, 2, 1)
+% hold on
+% bar(mean(mAICs))
+% errorbar(mean(mAICs), std(mAICs) / sqrt(size(mAICs, 1)))
+% xticks(1:length(Ms));
+% xticklabels(cellfun(@(x) x.name, Ms, 'UniformOutput', false));
+% set(gca, 'TickLabelInterpreter', 'none')
+% ylabel('\Delta AIC')
+% title('Models')
+% 
+% % static_model_ind = find(contains(cellfun(@(x) x.name, Ms, 'UniformOutput', false), 'static'));
+% % dynamic_model_ind = find(contains(cellfun(@(x) x.name, Ms, 'UniformOutput', false), 'dynamic'));
+% static_model_ind = find(strcmp(cellfun(@(x) x.name, Ms, 'UniformOutput', false), 'a0b3s'));
+% dynamic_model_ind = find(contains(cellfun(@(x) x.name, Ms, 'UniformOutput', false), 'a0b3s_hybrid'));
+% p = signrank(AICs(:, dynamic_model_ind), AICs(:, static_model_ind), 'tail', 'left');
+% 
+% subplot(1, 2, 2)
+% yline(0, '--')
+% hold on
+% plot(sort(AICs(:, dynamic_model_ind) - AICs(:, static_model_ind), 'descend'), '.', 'MarkerSize', 15)
+% title('a0b3s vs. a0b3s hybrid')
+% ylabel('\Delta AIC')
+% xlabel('sorted participant')
+% set(gca, 'fontsize', 14)
+% sgtitle(['AB Sess ' num2str(sess) ' (p=' num2str(p) ')'])
+% 
+% % Save figures (Fig 4)
+% saveas(gcf, ['plots/TSC_fit_sess', num2str(sess), '.png'])
+% saveas(gcf, ['plots/TSC_fit_sess', num2str(sess), '.svg'])
+% 
+% %% Plot fit (BIC)
+% clear all
+% sess = 1;
+% load(['FitModels_TSC_sess',num2str(sess)])
+% 
+% BICs = squeeze(All_fits(:, 4, :));
+% mBICs = BICs - repmat(mean(BICs, 2), 1, size(BICs, 2));
+% 
+% figure('Position', [300 300 900 400])
+% subplot(1, 2, 1)
+% hold on
+% bar(mean(mBICs))
+% errorbar(mean(mBICs), std(mBICs) / sqrt(size(mBICs, 1)))
+% xticks(1:length(Ms));
+% xticklabels(cellfun(@(x) x.name, Ms, 'UniformOutput', false));
+% set(gca, 'TickLabelInterpreter', 'none')
+% ylabel('\Delta BIC')
+% title('Models')
+% 
+% % static_model_ind = find(contains(cellfun(@(x) x.name, Ms, 'UniformOutput', false), 'static'));
+% % dynamic_model_ind = find(contains(cellfun(@(x) x.name, Ms, 'UniformOutput', false), 'dynamic'));
+% static_model_ind = find(contains(cellfun(@(x) x.name, Ms, 'UniformOutput', false), 'a0b1s_hybrid'));
+% dynamic_model_ind = find(contains(cellfun(@(x) x.name, Ms, 'UniformOutput', false), 'a0b3s_hybrid'));
+% % dynamic_model_ind = 2;
+% [p, h, z] = signrank(BICs(:, dynamic_model_ind), BICs(:, static_model_ind));
+% 
+% subplot(1, 2, 2)
+% yline(0, '--')
+% hold on
+% plot(sort(BICs(:, dynamic_model_ind) - BICs(:, static_model_ind), 'descend'), '.', 'MarkerSize', 15)
+% title('a0b1s vs. a0b2s hybrid')
+% ylabel('\Delta BIC')
+% xlabel('sorted participant')
+% set(gca, 'fontsize', 14)
+% sgtitle(['AB Sess ' num2str(sess) ' (p=' num2str(p) ', z=' num2str(z.zval) ')'])
+% 
+% % Save figures (Fig 4)
+% saveas(gcf, ['plots/TSC_fit_sess', num2str(sess), '_BIC.png'])
+% saveas(gcf, ['plots/TSC_fit_sess', num2str(sess), '_BIC.svg'])

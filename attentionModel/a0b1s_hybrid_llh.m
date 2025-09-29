@@ -8,6 +8,12 @@ lapse = theta(4);%theta(2);%.05;
 ret = theta(5);%theta(3);%.1;
 bias = theta(6);
 
+if length(theta) == 7
+    forget = [theta(7),1;
+                1, theta(7)];
+else
+    forget = 1;
+end
 % state 2: RL
 % state 1: random
 % lapse: probability of lapsing from 2 to 1
@@ -15,18 +21,18 @@ bias = theta(6);
 
 T = [1-ret lapse;ret 1-lapse];
 
-stimuli = data(:,1);
-choices = data(:,2);
-rewards = data(:,3);
+stimuli = data.s;
+choices = data.c;
+rewards = data.r;
 
-Q = [.5 .5;.5 .5];
+Q = (data.Q-0.5).*forget+0.5;
 lt = log(.5);
 llh = lt;
 p = [lapse 1-lapse];
 s = stimuli(1);
 b(2) = epsilon/2 + (1-epsilon)/(1+exp(beta*(Q(s,1)-Q(s,2))));
 b(1) = 1-b(2);
-b1 = [.5 .5];
+b1 = [1-bias bias];
 
 firstS = stimuli(1);
 
@@ -55,8 +61,8 @@ for k = 2:length(choices)
     b(2) = epsilon/2 + (1-epsilon)/(1+exp(beta*(Q(stimuli(k),1)-Q(stimuli(k),2)+sum(stick.*side))));
     b(1) = 1-b(2);
     mQ = mean(Q);
-    b1(firstS) = bias;
-    b1(3-firstS) = 1-b1(firstS);
+    b1(2) = bias;
+    b1(1) = 1-b1(2);
        
     lt = log(b1(choices(k))*p(1) + b(choices(k))*p(2));
     llh = llh + lt;

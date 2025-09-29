@@ -1,98 +1,95 @@
-function newData = a0b1s_hybrid(theta,data,latent,prew)
+function newData = a0b1s_hybrid(theta,data)
 
 beta = theta(1);
-% beta = 8;
 alpha = [1e-6 theta(2)];%.2;
-% alpha = [1e-6 0.002];
 stick = [0; 0; theta(3); theta(3)];
-% stick = [0; 0; 0; 0];
 epsilon = 1e-6;%theta(7);
 lapse = theta(4);%theta(2);%.05;
-recover = theta(5);%theta(3);%.1;
+ret = theta(5);%theta(3);%.1;
 bias = theta(6);
-% bias = 0.5;
 
 % state 2: RL
 % state 1: random
 % lapse: probability of lapsing from 2 to 1
 % ret: probability of returning from random to RL
 
+T = [1-ret lapse;ret 1-lapse];
+
 stimuli = data(:,1);
-choices = zeros(size(data,1), 1);
-rewards = zeros(size(data,1), 1);
-policy = zeros(size(data,1), 1);
-
+choices = data(:,2);
+rewards = data(:,3);
+nTrials = length(stimuli);
 Q = [.5 .5;.5 .5];
-engaged = 1;
+lt = log(.5);
+%llh = lt;
+p = [lapse 1-lapse];
+s = stimuli(1);
+b(2) = epsilon/2 + (1-epsilon)/(1+exp(beta*(Q(s,1)-Q(s,2))));
+b(1) = 1-b(2);
+b1 = [.5 .5];
 
-firstS = stimuli(1);
+p_engaged = zeros(nTrials,2);
+policy = zeros(nTrials,1);
+pRight = zeros(nTrials,1);
+Q_est = zeros(nTrials, 2,2);
+psychometric = zeros(nTrials,1); % calculate beta*deltaQ + sum(stickiness*side) for every trial
+p_engaged(1,:) = p;
+policy(1) = 0.5;
+pRight(1) = 0.5;
+Q_est(1,:,:) = [0.5 0.5;0.5 0.5];
 
-for t = 1:size(data,1)
-    s = stimuli(t);
-
-    side = zeros(4,1);
-    if t > 1
-        if stimuli(t-1) == s && rewards(t-1) == 0
-            side(1) = 2 * (1.5 - choices(t-1)); % 1 for A1 and -1 for A2
-        end
-        if stimuli(t-1) ~= s && rewards(t-1) == 0
-            side(2) = 2 * (1.5 - choices(t-1));
-        end
-        if stimuli(t-1) == s && rewards(t-1) > 0
-            side(3) = 2 * (1.5 - choices(t-1));
-        end
-        if stimuli(t-1) ~= s && rewards(t-1) > 0
-            side(4) = 2 * (1.5 - choices(t-1));
-        end
+for k = 2:length(choices)
+    s = stimuli(k-1);
+    choice = choices(k-1);
+    r = rewards(k-1);
+    p = (b1(choice)*p(1)*T(:,1) + b(choice)*p(2)*T(:,2)) / exp(lt);
+    
+    Q(s,choice) = Q(s,choice) + alpha(r+1)*(r-Q(s,choice));
+      
+    side=zeros(4,1);
+    if stimuli(k-1) == stimuli(k) && rewards(k-1) == 0
+        side(1) = 2 * (1.5 - choices(k-1)); % 1 for A1 and -1 for A2
     end
-
-    % make a choice
-    if nargin > 2
-        engaged = rand < latent(t);
+    if stimuli(k-1) ~= stimuli(k) && rewards(k-1) == 0
+        side(2) = 2 * (1.5 - choices(k-1));
     end
-
-%     engaged = 1;
-
-    if engaged
-        pr = 1 / (1 + exp(beta * (Q(s,1) - Q(s,2) + sum(stick.*side)))); % Probability of choosing action A2
-        if rand < lapse
-            engaged = 0; % Lapse with a probability
-        end
+    if stimuli(k-1) == stimuli(k) && rewards(k-1) > 0
+        side(3) = 2 * (1.5 - choices(k-1));
+    end
+    if stimuli(k-1) ~= stimuli(k) && rewards(k-1) > 0
+        side(4) = 2 * (1.5 - choices(k-1));
+    end
+    
+    psychometric(k) = beta*(Q(stimuli(k),2)-Q(stimuli(k),1)-sum(stick.*side));
+    b(2) = epsilon/2 + (1-epsilon)/(1+exp(beta*(Q(stimuli(k),1)-Q(stimuli(k),2)+sum(stick.*side))));
+    b(1) = 1-b(2);
+    mQ = mean(Q);
+    b1(2) = bias;
+    b1(1) = 1-b1(2);
+       
+    lt = log(b1(choices(k))*p(1) + b(choices(k))*p(2));
+    
+    if rewards(k)>0
+        policy(k) = b1(choices(k))*p(1) + b(choices(k))*p(2);
     else
-        mQ = mean(Q);
-%         pr = 1 / (1 + exp(beta * (mQ(1) - mQ(2) + stick5))); % Probability of choosing action A2 during lapse state
-        if firstS == 2
-            pr = bias;
-        else
-            pr = 1 - bias;
-        end
-        if rand < recover
-            engaged = 1; % Return to engaged state with a probability
+        policy(k) = 1-b1(choices(k))*p(1) - b(choices(k))*p(2);
+    end
+    pRight(k) = b1(2)*p(1) + b(2)*p(2);
+    p_engaged(k,:) = p;
+    for ss = 1:2
+        for cc=1:2
+            Q_est(k,ss,cc) = Q(ss,cc);
         end
     end
+        
+        
 
-    choice = 1 + (rand < pr); % Choose action A2 with probability pr
-    if rand < epsilon
-        choice = randsample([1 2], 1); % Exploration: Choose randomly between actions A1 and A2
-    end
-
-    correct = choice == s;
-    r = correct;
-    if nargin == 4
-        r = (rand < prew) * correct;
-    end
-
-    if s == 2
-        policy(t) = 1 / (1 + exp(beta * (Q(s,1) - Q(s,2) + sum(stick.*side))));
-    else
-        policy(t) = 1 - 1 / (1 + exp(beta * (Q(s,1) - Q(s,2) + sum(stick.*side))));
-    end
-
-    Q(s,choice) = Q(s,choice) + alpha(r+1) * (r - Q(s,choice));
-
-    choices(t) = choice;
-    rewards(t) = r;
 end
 
-newData = [stimuli choices rewards policy];
+newData.policy = policy;
+newData.p_engaged = p_engaged;
+newData.Q = Q_est;
+newData.pRight = pRight;
+newData.psychometric = psychometric;
+
 end

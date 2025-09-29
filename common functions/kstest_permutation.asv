@@ -1,0 +1,28 @@
+function p = kstest_permutation(x1, x2)
+
+% ks test with permutation
+% 1. p_ks = kstest2(x1,x2)
+% 2. combine x1, and x2, random split the total dataset
+% into 2 groups 9999 times
+% 3. kstest2(x1_regroup, x2_regroup)
+% 4. p = p_regroup<p_ks/9999
+
+repeats = 9999;
+
+p_ks = kstest2(x1, x2);
+
+p_list = zeros(repeats,1);
+data = [x1;x2];
+size1 = length(x1);
+size2 = length(x2);
+
+for ii = 1:repeats
+    idx = randperm(length(data));
+    newx1 = data(idx(1:size1));
+    newx2 = data(idx(size1+1:end));
+    [~,p_list(ii)] = kstest2(newx1, newx2);
+end
+
+p = sum(p_list<=p_ks)/repeats;
+
+

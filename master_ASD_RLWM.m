@@ -12,7 +12,7 @@ root_dir = 'Z:\HongliWang\Juvi_ASD Deterministic';
 strain_list = {'ChD8'; 'Nlgn3'; 'Cntnap2_KO'; 'TSC2';'TSC2_adult';'Shank3B'; 'Syngap'};
 
 %% add for loop later
-strainNum =4;
+strainNum =1;
 
 % save the dataIndex data
 dataIndexPath = fullfile(root_dir, strain_list{strainNum},'dataIndex.csv');
@@ -46,8 +46,9 @@ for ii = 1:nFiles
         dataIndex.EntropyAB = nan(nFiles,1);
         dataIndex.EntropyCD = nan(nFiles,1);
         dataIndex.EntropyDC = nan(nFiles,1);
-
-
+        dataIndex.nAB = nan(nFiles,1);
+        dataIndex.nCD = nan(nFiles, 1);
+        dataIndex.nDC = nan(nFiles,1);
     end
     if ~exist(dataIndex.BehPath{ii})
         mkdir(dataIndex.BehPath{ii});
@@ -97,6 +98,7 @@ for ii = 1:nFiles
             dataIndex.RRABL(ii) = sum((resultdf.schedule(1:ABEnd) == 1) & ~isnan(resultdf.reward(1:ABEnd)))/sum(resultdf.schedule(1:ABEnd) == 1);
             dataIndex.RRABR(ii) = sum((resultdf.schedule(1:ABEnd) == 2) & ~isnan(resultdf.reward(1:ABEnd)))/sum(resultdf.schedule(1:ABEnd) == 2);
             dataIndex.EntropyAB(ii) = get_stimulus_entropy(resultdf.schedule(1:ABEnd));
+            dataIndex.nAB(ii) = size(resultdf,1);
 
         elseif strcmp(dataIndex.Protocol{ii},'AB-CD')
             ABEnd = find(resultdf.schedule == 3 | resultdf.schedule == 4, 1, 'first')-1;
@@ -108,7 +110,8 @@ for ii = 1:nFiles
             dataIndex.RRCDR(ii) = sum((resultdf.schedule(ABEnd+1:CDEnd) == 4) & ~isnan(resultdf.reward(ABEnd+1:CDEnd)))/sum(resultdf.schedule(ABEnd+1:CDEnd) == 4);
             dataIndex.EntropyAB(ii) = get_stimulus_entropy(resultdf.schedule(1:ABEnd));
             dataIndex.EntropyCD(ii) = get_stimulus_entropy(resultdf.schedule(ABEnd+1:CDEnd));
-
+            dataIndex.nAB(ii) = ABEnd;
+            dataIndex.nCD(ii) = CDEnd-ABEnd;
         elseif strcmp(dataIndex.Protocol{ii}, 'AB-CD-DC')
             ABEnd = find(resultdf.schedule == 3 | resultdf.schedule == 4, 1, 'first')-1;
             CDEnd = find(resultdf.schedule == 5 | resultdf.schedule == 6, 1, 'first')-1;
@@ -122,7 +125,9 @@ for ii = 1:nFiles
             dataIndex.EntropyAB(ii) = get_stimulus_entropy(resultdf.schedule(1:ABEnd));
             dataIndex.EntropyCD(ii) = get_stimulus_entropy(resultdf.schedule(ABEnd+1:CDEnd));
             dataIndex.EntropyDC(ii) = get_stimulus_entropy(resultdf.schedule(CDEnd+1:DCEnd));
-
+            dataIndex.nAB(ii) = ABEnd;
+            dataIndex.nCD(ii) = CDEnd-ABEnd;
+            dataIndex.nDC(ii) = DCEnd-CDEnd;
         elseif strcmp(dataIndex.Protocol{ii}, 'AB-DC')
             ABEnd = find(resultdf.schedule == 5 | resultdf.schedule == 6, 1, 'first')-1;
             CDEnd = NaN;
@@ -133,7 +138,8 @@ for ii = 1:nFiles
             dataIndex.RRDCR(ii) = sum((resultdf.schedule(ABEnd+1:DCEnd) == 5) & ~isnan(resultdf.reward(ABEnd+1:DCEnd)))/sum(resultdf.schedule(ABEnd+1:DCEnd) == 5);
             dataIndex.EntropyAB(ii) = get_stimulus_entropy(resultdf.schedule(1:ABEnd));
             dataIndex.EntropyDC(ii) = get_stimulus_entropy(resultdf.schedule(ABEnd+1:DCEnd));
-
+            dataIndex.nAB(ii) = ABEnd;
+            dataIndex.nDC(ii) = DCEnd-ABEnd;
         end
 
 
@@ -156,58 +162,6 @@ writetable(dataIndex, dataIndexPath);
 %nFiles = size(dataIndex,1);
 %end
 
-%% check if reversed
-animalList.reversed = zeros(size(animalList,1),1);
-for aa = 1:size(animalList,1)
-    subdataIndex = dataIndex(strcmp(dataIndex.Animal, num2str(animalList.AnimalID(aa))),:);
-    % if AB-DC count up to 4
-    % average of session 5/6 exceed 60%
-    Values = cellfun(@(x) x,subdataIndex.ProtocolDay);
-    sessionMask = Values>=4 & strcmp(subdataIndex.Protocol, 'AB-DC');
-    if sum(sessionMask)>0
-        maxPerformance = max((subdataIndex.RRDCL(sessionMask) + subdataIndex.RRDCR(sessionMask))/2);
-        if maxPerformance > 0.6
-            animalList.reversed(aa) = 1;
-        end
-    end
-end
-animalList.reversed = boolean(animalList.reversed);
-%% process every session, generate single session analysis, move this
-% to a independent for loop
-% 1. behavior session summary
-% 2. number of AB/CD/DC trials experienced per session
-% 2. response time
-% 3. intertial interval
-buggedFileList = [];
-for ii = 1:nFiles
-    resultdf = readtable(fullfile(dataIndex.BehPath{ii},dataIndex.BehCSV{ii}));
-    stim = unique(resultdf.schedule);
-    if length(stim)==4
-        if ismember(3, stim)
-            numPorts = length(unique(resultdf.port_side(resultdf.schedule==3)));
-        elseif ismember(5, stim)
-            numPorts = length(unique(resultdf.port_side(resultdf.schedule==5)));
-        end
-    elseif length(stim) == 6
-        numPorts = max(length(unique(resultdf.port_side(resultdf.schedule==3))),length(unique(resultdf.port_side(resultdf.schedule==5))));
-    else
-        numPorts = 0;
-    end
-
-    if numPorts >= 2
-        buggedFileList = [buggedFileList, ii];
-    end
-end
-
-
-
-%% single session performance
-% logistic regression & reinforcement learning model
-for ii = 1:nFiles
-    resultdf = readtable(fullfile(dataIndex.BehPath{ii},dataIndex.BehCSV{ii}));
-    ASD_session(resultdf,dataIndex.Protocol{ii},dataIndex.Animal(ii), dataIndex.Session(ii),dataIndex.BehPath{ii} );
-end
-
 savesummaryfolder = fullfile(root_dir, strain_list{strainNum},'Summary');
 if ~exist(savesummaryfolder)
     mkdir(savesummaryfolder)
@@ -221,45 +175,99 @@ if ~exist(savedatapath)
     mkdir(savedatapath)
 end
 
-step_back = 5;
-tlabels = {'AB', 'AB-CD-AB', 'AB-CD', 'AB-DC-AB', 'AB-DC'};
-sessions = 1:5;
-for ll = 1:length(tlabels)
-    for ss = 1:length(sessions)
-        if sessions(ss) > 3 & ismember(tlabels{ll}, {'AB', 'AB-CD', 'AB-CD-AB'})
-            break;
-        else
-            display([tlabels{ll}, num2str(sessions(ss))])
-            mixed_logreg_RCUC(dataIndex,tlabels{ll}, sessions(ss), step_back, savefigpath,savedatapath)
-            mixed_logreg_CRInt(dataIndex,tlabels{ll}, sessions(ss), step_back, savefigpath,savedatapath)
 
-        end
-    end
+%% check if reversed
+% animalList.reversed = zeros(size(animalList,1),1);
+% for aa = 1:size(animalList,1)
+%     subdataIndex = dataIndex(strcmp(dataIndex.Animal, num2str(animalList.AnimalID(aa))),:);
+%     % if AB-DC count up to 4
+%     % average of session 5/6 exceed 60%
+%     Values = cellfun(@(x) x,subdataIndex.ProtocolDay);
+%     sessionMask = Values>=4 & strcmp(subdataIndex.Protocol, 'AB-DC');
+%     if sum(sessionMask)>0
+%         maxPerformance = max((subdataIndex.RRDCL(sessionMask) + subdataIndex.RRDCR(sessionMask))/2);
+%         if maxPerformance > 0.6
+%             animalList.reversed(aa) = 1;
+%         end
+%     end
+% end
+% animalList.reversed = boolean(animalList.reversed);
+%% process every session, generate single session analysis, move this
+% to a independent for loop
+% 1. behavior session summary
+% 2. number of AB/CD/DC trials experienced per session
+% 2. response time
+% 3. intertial interval
+% buggedFileList = [];
+% for ii = 1:nFiles
+%     resultdf = readtable(fullfile(dataIndex.BehPath{ii},dataIndex.BehCSV{ii}));
+%     stim = unique(resultdf.schedule);
+%     if length(stim)==4
+%         if ismember(3, stim)
+%             numPorts = length(unique(resultdf.port_side(resultdf.schedule==3)));
+%         elseif ismember(5, stim)
+%             numPorts = length(unique(resultdf.port_side(resultdf.schedule==5)));
+%         end
+%     elseif length(stim) == 6
+%         numPorts = max(length(unique(resultdf.port_side(resultdf.schedule==3))),length(unique(resultdf.port_side(resultdf.schedule==5))));
+%     else
+%         numPorts = 0;
+%     end
+% 
+%     if numPorts >= 2
+%         buggedFileList = [buggedFileList, ii];
+%     end
+% end
+
+
+
+%% single session performance
+% logistic regression & reinforcement learning model
+for ii = 1:nFiles
+    resultdf = readtable(fullfile(dataIndex.BehPath{ii},dataIndex.BehCSV{ii}));
+    ASD_session(resultdf,dataIndex.Protocol{ii},dataIndex.Animal(ii), dataIndex.Session(ii),dataIndex.BehPath{ii} );
 end
 
-% consider only reversed animals
-
-
-step_back = 5;
-tlabels = {'AB', 'AB-CD',  'AB-DC'};
-sessions = 1:5;
-reversedMask = ismember(cellstr([dataIndex.Animal]),num2str(animalList.AnimalID(animalList.reversed)));
-reversedDataIndex = dataIndex(reversedMask,:);
-for ll = 1:length(tlabels)
-    for ss = 1:length(sessions)
-        if sessions(ss) > 3 & ismember(tlabels{ll}, {'AB', 'AB-CD', 'AB-CD-AB'})
-            break;
-        else
-            display([tlabels{ll}, num2str(sessions(ss))])
-            mixed_logreg_RCUC(reversedDataIndex ,tlabels{ll}, sessions(ss), step_back, savefigpath,savedatapath)
-
-            mixed_logreg_CRInt(reversedDataIndex ,tlabels{ll}, sessions(ss), step_back, savefigpath,savedatapath)
-
-        end
-    end
-end
+% step_back = 5;
+% tlabels = {'AB', 'AB-CD-AB', 'AB-CD', 'AB-DC-AB', 'AB-DC'};
+% sessions = 1:5;
+% for ll = 1:length(tlabels)
+%     for ss = 1:length(sessions)
+%         if sessions(ss) > 3 & ismember(tlabels{ll}, {'AB', 'AB-CD', 'AB-CD-AB'})
+%             break;
+%         else
+%             display([tlabels{ll}, num2str(sessions(ss))])
+%             mixed_logreg_RCUC(dataIndex,tlabels{ll}, sessions(ss), step_back, savefigpath,savedatapath)
+%             mixed_logreg_CRInt(dataIndex,tlabels{ll}, sessions(ss), step_back, savefigpath,savedatapath)
+% 
+%         end
+%     end
+% end
+% 
+% % consider only reversed animals
+% 
+% 
+% step_back = 5;
+% tlabels = {'AB', 'AB-CD',  'AB-DC'};
+% sessions = 1:5;
+% reversedMask = ismember(cellstr([dataIndex.Animal]),num2str(animalList.AnimalID(animalList.reversed)));
+% reversedDataIndex = dataIndex(reversedMask,:);
+% for ll = 1:length(tlabels)
+%     for ss = 1:length(sessions)
+%         if sessions(ss) > 3 & ismember(tlabels{ll}, {'AB', 'AB-CD', 'AB-CD-AB'})
+%             break;
+%         else
+%             display([tlabels{ll}, num2str(sessions(ss))])
+%             mixed_logreg_RCUC(reversedDataIndex ,tlabels{ll}, sessions(ss), step_back, savefigpath,savedatapath)
+% 
+%             mixed_logreg_CRInt(reversedDataIndex ,tlabels{ll}, sessions(ss), step_back, savefigpath,savedatapath)
+% 
+%         end
+%     end
+% end
 
 ASD_summary_behavior(dataIndex, savefigpath)
+
 
 %% reinforcement learning model for each animals
 for aa =11:size(animalList)
@@ -272,6 +280,16 @@ for aa =11:size(animalList)
 end
 
 ASD_summray_RL(dataIndex, animalList, savesummaryfolder)
+
+% Jing-jing model
+% prepare data for model fit first
+files = ASD_hybrid_dataPrep(dataIndex,savedatapath);
+
+% fit the model
+ASD_hybrid_modelFit(dataIndex, files, savedatapath, savefigpath);
+
+% estimate latent variable based on fit result
+ASD_hybrid_modelEstimate(savedatapath, savefitpath)
 %% check how trial number build up over time
 
 %% go over every session to plot performance in blocks for

@@ -1,0 +1,119 @@
+function plot_real_fit_data(this_data, fitData, fitparam, subject, label, analysisFolder, csvfilepath)
+
+
+    savefigpath = fullfile(analysisFolder, 'latent');
+    if ~exist(savefigpath)
+        mkdir(savefigpath)
+    end
+
+
+setup_figprop;
+
+nTrials = size(this_data,1);
+ave_reward_rate = zeros(nTrials,1);
+ave_policy = zeros(nTrials,1);
+ave_pRight = zeros(nTrials,1);
+windowSize = 60;
+for tt = 1:nTrials
+    if tt<=windowSize/2
+        ave_reward_rate(tt,1) = nanmean(this_data(1:tt,3));
+        ave_policy(tt,1) = nanmean(fitData.policy(1:tt));
+        ave_pPight(tt,1) = nanmean(fitData.pRight(1:tt));
+    elseif tt+windowSize/2>=nTrials
+        ave_reward_rate(tt,1) = nanmean(this_data(tt:end,3));
+        ave_policy(tt,1) = nanmean(fitData.policy(tt:end));
+        ave_pRight(tt,1) = nanmean(fitData.pRight(tt:end));
+    else
+        ave_reward_rate(tt,1) = nanmean(this_data(tt-windowSize/2:tt+windowSize/2,3));
+        ave_policy(tt,1) = nanmean(fitData.policy(tt-windowSize/2:tt+windowSize/2));
+        ave_pRight(tt,1) = nanmean(fitData.pRight(tt-windowSize/2:tt+windowSize/2));
+    end
+end
+
+figure;
+subplot(3,1,1)
+nPlot = 1:nTrials;
+plot(nPlot,ave_reward_rate,'k')
+hold on;
+%plot(nPlot, fitData.policy, '-','Color', [0.7 0.7 0.7]);
+plot(nPlot, ave_policy, '--','Color', [0.7 0.7 0.7]);
+%plot(nPlot, ave_pRight(:,1), '-','Color', [0.7 0.7 0.7]);
+%legend('PCorrect', 'fitted PCorrect', 'fitted PRight')
+set(gca, 'Box', 'off');
+ylabel('P_{correct}')
+ylim([0 1])
+
+subplot(3,1,2)
+plot(nPlot, fitData.Q(:,1,1)-fitData.Q(:,1,2),'Color', 'red' )
+hold on; plot(nPlot,fitData.Q(:,2,1)-fitData.Q(:,2,2),'Color', 'blue')
+set(gca, 'Box', 'off');
+ylabel('\DeltaQ')
+ylim([-0.51 0.51])
+
+subplot(3,1,3)
+plot(nPlot, fitData.p_engaged(:,2))
+set(gca, 'Box', 'off');
+ylabel('P_{engaged}')
+xlabel('Trials')
+ylim([0 1])
+
+print(gcf,'-dpng',fullfile(savefigpath, ['session-fit_', label]));    %png format
+saveas(gcf, fullfile(savefigpath, ['session-fit_', label]), 'fig');
+saveas(gcf, fullfile(savefigpath, ['session-fit_', label]),'svg');
+close;
+%% psychometric curve for engaged/disengaged trials
+% needs to combine sessions to get enough data
+engaged_threshold = 0.75;
+disengaged_threshold = 0.25;
+% find engage/disengaged/trials
+engageMask = fitData.p_engaged(:,2)>engaged_threshold;
+disengageMask = fitData.p_engaged(:,2)<disengaged_threshold;
+Q_width = 0.1;
+Q_step = -8+Q_width/2:Q_width:8-Q_width/2;
+engaged_count = zeros(length(Q_step),2);
+disengaged_count = zeros(length(Q_step), 2);
+stimulus = this_data(:,1);
+choices = this_data(:,2);
+rewards = this_data(:,3);
+for qq = 1:length(Q_step)
+    Q_left = Q_step(qq)-Q_width/2;
+    Q_right = Q_step(qq)+Q_width/2;
+    trialMask_Q = (fitData.psychometric >=Q_left & fitData.psychometric<Q_right & engageMask);
+    engaged_count(qq,1) = sum(choices(trialMask_Q)==2); % # of right choices
+    engaged_count(qq,2) = sum(trialMask_Q);  % # number of total trials
+    % disengaged trials
+    trialMask_de = (fitData.psychometric >=Q_left & fitData.psychometric<Q_right & disengageMask);
+    disengaged_count(qq,1) = sum(choices(trialMask_de)==2); % # of right choices
+    disengaged_count(qq,2) = sum(trialMask_de);
+end
+% save the data for later summary plot
+
+
+%% response time/intertrial interval correlation with p_engaged
+% load csv file and calculate response time
+behcsv = readtable(fullfile(analysisFolder,csvfilepath));
+
+if contains(label,'CD')
+    % get only CD trials
+    behcsv = behcsv(behcsv.schedule>=3,:);
+end
+%nTrials = size(behcsv,1);
+responseTime = behcsv.side_in-behcsv.center_in;
+ITITime = [nan;behcsv.center_in(2:end)-behcsv.center_in(1:end-1)];
+% remove no response times
+rt = responseTime(~isnan(behcsv.actions)&~isnan(behcsv.schedule));
+iti = ITITime(~isnan(behcsv.actions));
+
+% save the result
+data = struct;
+data.rt = rt;
+data.iti = iti;
+data.Q_step = Q_step;
+data.engaged_count = engaged_count;
+data.disengaged_count = disengaged_count;
+data.p_engaged = fitData.p_engaged(:,2);
+data.fitData = fitData;
+savedatapath = fullfile(savefigpath, ['latentBehData',label,'.mat']);
+save(savedatapath, 'data')
+
+

@@ -43,7 +43,9 @@ perf_CD_block_session = nan(nSubjects,20, 3); % dim3: session
 perf_DC_block_session = nan(nSubjects,20, 6); % dim4: session
 perf_AB_CD_block_session = nan(nSubjects, 20, 3);  % AB readiness performance in AB-CD session
 perf_AB_DC_block_session = nan(nSubjects, 20, 6); % AB readiness performance in AB-DC session
-
+perf_AB_block_learning= nan(nSubjects, 20, 3);
+perf_AB_running = nan(nSubjects,2000,3);
+perf_AB_running_smoothed = nan(nSubjects,2000,3);
 perf_DC_session = nan(nSubjects,6);
 
 %% trial number and performance
@@ -81,7 +83,18 @@ for ii = 1:nSubjects
 
     % calculate performance in blocks
     %perf_AB_block(ii,:) = perf_in_block(results, protocol, blockLength);
-
+    % examine the learning rate of AB sessions with 100 block length
+    perf_AB_running(ii,:,:) = perf_in_running_session(results,protocol,blockLength);
+    
+%     
+%     order = 2;       % polynomial order
+%     framelen = 21;   % must be odd
+%     for ss = 1:3
+%         tempSig = perf_AB_running(ii,:,ss);
+%         tempSig = tempSig(~isnan(tempSig));
+%         perf_AB_running_smoothed(ii,1:length(tempSig),ss) = sgolayfilt(tempSig, order, framelen);
+%     end
+    
     %% for CD odors
     animalMask = strcmp(dataIndex.Animal, Subjects{ii});
     stageMask = cellfun(@(x) isequal(x, [1;2;3;4]), dataIndex.OdorPresented);
@@ -167,6 +180,22 @@ for ii = 1:nSubjects
 
         % calculate performance in blocks
         %perf_DC_block(ii,:) = perf_in_block(results, protocol,blockLength);
+    end
+end
+
+%% calculate slope of smoothed performance curve
+windowSize = 401;   % must be odd
+dx = nan(size(perf_AB_running_smoothed));
+halfWin = floor(windowSize/2);
+
+for ss = 1:size(perf_AB_running_smoothed,1)
+    for pp = 1:size(perf_AB_running_smoothed,3)
+for i = 1+halfWin : size(perf_AB_running_smoothed,2)-halfWin
+    y = perf_AB_running_smoothed(ss,i-halfWin : i+halfWin,pp);
+    t = (1:windowSize)';         % local time index
+    p = polyfit(t, y, 1);        % linear fit
+    dx(ss,i,pp) = p(1);                % slope
+end
     end
 end
 
@@ -460,9 +489,9 @@ plot_nTrials(nAB_trials, nCD_trials, nDC_trials,genotype, savefigpath);
 %% how trials build up over time
 %plot_trials_time()
 %%  performance in quantile
-plot_performance_quantile(perf_AB_quantile, strain, genotype, savefigpath, 'AB');
-plot_performance_quantile(perf_CD_quantile, strain, genotype, savefigpath, 'CD');
-plot_performance_quantile(perf_DC_quantile, strain, genotype, savefigpath, 'DC');
+% plot_performance_quantile(perf_AB_quantile, strain, genotype, savefigpath, 'AB');
+% plot_performance_quantile(perf_CD_quantile, strain, genotype, savefigpath, 'CD');
+% plot_performance_quantile(perf_DC_quantile, strain, genotype, savefigpath, 'DC');
 
 %% performance in block on session-basis
 plot_performance_block_session(perf_AB_block_session, strain, genotype, savefigpath, 'AB');
@@ -470,6 +499,9 @@ plot_performance_block_session(perf_CD_block_session, strain, genotype, savefigp
 plot_performance_block_session(perf_DC_block_session, strain, genotype, savefigpath, 'DC');
 plot_performance_block_session(perf_AB_CD_block_session, strain, genotype, savefigpath, 'AB-CD');
 plot_performance_block_session(perf_AB_DC_block_session, strain, genotype, savefigpath, 'AB-DC');
+
+%% learning rate
+plot_performance_block_session(perf_AB_running_smoothed, strain, genotype, savefigpath, 'AB');
 %% performance in block
 % plot_performance_block(perf_AB_block, blockLength, genotype, savefigpath, 'AB');
 % plot_performance_block(perf_CD_block, blockLength,  genotype, savefigpath, 'CD');
@@ -482,12 +514,12 @@ DC_perf_session= squeeze(nanmean(perf_DC_quantile(:,:,5:6),2));
 animal_reversed = find(any(DC_perf_session > 0.6, 2));
 animal_notreversed = find(~any(DC_perf_session > 0.6, 2));
 % plot
-plot_performance_quantile(perf_AB_quantile(animal_reversed ,:,:), strain,...
-    genotype(animal_reversed ,:,:), savefigpath, 'AB-reversed');
-plot_performance_quantile(perf_CD_quantile(animal_reversed ,:,:), strain,...
-    genotype(animal_reversed ,:,:), savefigpath, 'CD-reversed');
-plot_performance_quantile(perf_DC_quantile(animal_reversed ,:,:), strain, ...
-    genotype(animal_reversed ,:,:), savefigpath, 'DC-reversed');
+% plot_performance_quantile(perf_AB_quantile(animal_reversed ,:,:), strain,...
+%     genotype(animal_reversed ,:,:), savefigpath, 'AB-reversed');
+% plot_performance_quantile(perf_CD_quantile(animal_reversed ,:,:), strain,...
+%     genotype(animal_reversed ,:,:), savefigpath, 'CD-reversed');
+% plot_performance_quantile(perf_DC_quantile(animal_reversed ,:,:), strain, ...
+%     genotype(animal_reversed ,:,:), savefigpath, 'DC-reversed');
 
 plot_performance_block_session(perf_AB_block_session(animal_reversed ,:,:), strain,...
     genotype(animal_reversed ,:,:), savefigpath, 'AB-reversed');
@@ -498,12 +530,12 @@ plot_performance_block_session(perf_DC_block_session(animal_reversed ,:,:),strai
 
 % not
 % reversed---------------------------------------------------------------
-plot_performance_quantile(perf_AB_quantile(animal_notreversed ,:,:),strain, ...
-    genotype(animal_notreversed ,:,:), savefigpath, 'AB-notreversed');
-plot_performance_quantile(perf_CD_quantile(animal_notreversed ,:,:), strain,...
-    genotype(animal_notreversed ,:,:), savefigpath, 'CD-notreversed');
-plot_performance_quantile(perf_DC_quantile(animal_notreversed ,:,:), strain,...
-    genotype(animal_notreversed ,:,:), savefigpath, 'DC-notreversed');
+% plot_performance_quantile(perf_AB_quantile(animal_notreversed ,:,:),strain, ...
+%     genotype(animal_notreversed ,:,:), savefigpath, 'AB-notreversed');
+% plot_performance_quantile(perf_CD_quantile(animal_notreversed ,:,:), strain,...
+%     genotype(animal_notreversed ,:,:), savefigpath, 'CD-notreversed');
+% plot_performance_quantile(perf_DC_quantile(animal_notreversed ,:,:), strain,...
+%     genotype(animal_notreversed ,:,:), savefigpath, 'DC-notreversed');
 
 plot_performance_block_session(perf_AB_block_session(animal_notreversed ,:,:), strain,...
     genotype(animal_notreversed ,:,:), savefigpath, 'AB-notreversed');
