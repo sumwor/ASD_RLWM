@@ -115,7 +115,7 @@ p(3) = anovaTable.pValue(strcmp(anovaTable.Term,'group:trial'));
 
     text(1, 80, ['P(geno):',num2str(p(1), '%.3g')], 'FontSize', 20 )
          text(1, 77, ['P(trial):',num2str(p(2), '%.3g')], 'FontSize', 20 )
-         text(1,74, ['P(geno:trial:',num2str(p(3), '%.3g')], 'FontSize',20)
+         text(1,74, ['P(genoxtrial:',num2str(p(3), '%.3g')], 'FontSize',20)
 
     text(1, 20, ['WT ', num2str(nWT)], 'FontSize', 20 );
     text(1, 17, ['HET ', num2str(nHet)], 'FontSize', 20 );

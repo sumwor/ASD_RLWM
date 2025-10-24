@@ -24,18 +24,45 @@ for pp = 1:nPlot
     subplot(2,3,pp)
 
     genotype_list = unique(genotype);
-   if strcmp(strain, 'Cntnap2_KO')  % only look at WT and KO
+    if strcmp(strain, 'Cntnap2_KO')  % only look at WT and KO
         genotype_list = {'KO', 'WT'};
-   elseif strcmp(strain, 'Shank3B')
-       genotype_list={'HET', 'WT'};
+    elseif strcmp(strain, 'Shank3B')
+        genotype_list={'HET', 'WT'};
     end
     color_list = { 'red', 'blue','magenta'};
+
+    % compare performance within each block
+    hold on;
+
+    nBlocks = size(data,2);
+
+    % Preallocate p-values for each block
+    pvals = nan(1, nBlocks);
+
+    for blockIdx = 1:nBlocks
+        % Get data for this block for each genotype
+        data1 = data(strcmp(genotype, genotype_list{1}), blockIdx, pp);
+        data2 = data(strcmp(genotype, genotype_list{2}), blockIdx, pp);
+
+        % Remove NaNs
+        data1 = data1(~isnan(data1));
+        data2 = data2(~isnan(data2));
+
+        % Only test if both groups have >1 value
+        if length(data1)>1 && length(data2)>1
+            pvals(blockIdx) = ranksum(data1, data2);  % Mann–Whitney U test
+        end
+    end
+
+    % --- Multiple comparisons correction (Bonferroni) ---
+    p_fdr = mafdr(pvals,'BHFDR',true);  % fdr
+
 
     for gg = 1:length(genotype_list)
         % plot with blocks that have more than 3 animals
         not_nan_counts = sum(~isnan(data(strcmp(genotype, genotype_list{gg}),:,pp)));
 
-% Find indices of columns with more than 3 NaNs
+        % Find indices of columns with more than 3 NaNs
         columns_with_nans = find(not_nan_counts  >= 3);
 
         mean_perf = nanmean(data(strcmp(genotype, genotype_list{gg}),columns_with_nans,pp),1);
@@ -55,7 +82,14 @@ for pp = 1:nPlot
         end
 
     end
-    %ylim([0, 1]);
+    yl = ylim;
+    for blockIdx = 1:nBlocks
+        if p_fdr(blockIdx) < 0.05
+            text(blockIdx, yl(2)-0.05, '*', 'HorizontalAlignment', 'center', 'VerticalAlignment', 'bottom', 'FontSize', 15)
+        end
+    end
+
+    ylim([0, 1]);
     %xticks([1,2,3,4]);
     %legend(genotype_list)
     title(['Session ', num2str(pp)])
@@ -78,40 +112,65 @@ for pp = 1:nPlot
     end
     WTdata = data(strcmp(genotype, 'WT'),columns_with_nans,pp);
     nWT = sum(~all(isnan(WTdata), 2));
-    
+
     % check if there is empty data (not enough sessions/animals)
     if ~isempty(WTdata) && ~isempty(Hetdata)
         if length(genotype_list) == 2
-            WTdata = WTdata'; Hetdata = Hetdata';
+            % WTdata, Hetdata are [N_blocks x N_subjects]
+            nBlock = size(WTdata, 2);
+            nWTsub = size(WTdata, 1);
+            nHETsub = size(Hetdata,1);
+
+            % Flatten data (stack all values)
             dat = [WTdata(:); Hetdata(:)];
-    
-        % Create grouping variables
-            group = [repmat({'WT'}, numel(WTdata), 1); repmat({'HET'}, numel(Hetdata), 1)]; % Group labels
-            block = [repmat((columns_with_nans)', size(WTdata, 2), 1); repmat((columns_with_nans)', size(Hetdata, 2), 1)];   % Quantile labels
+
+            % Group labels
+            group = [repmat({'WT'}, numel(WTdata), 1);
+                repmat({'HET'}, numel(Hetdata), 1)];
+
+            % Block labels (repeat block index for each subject)
+            block = [repmat((1:nBlock)', nWTsub, 1);
+                repmat((1:nBlock)', nHETsub, 1)];
+
+            % Subject labels (repeat subject ID for each block)
+            subject = [repelem((1:nWTsub)', nBlock, 1);
+                repelem((1:nHETsub)' + nWTsub, nBlock, 1)];
         elseif length(genotype_list) == 3
             dat = [WTdata(:); Hetdata(:);KOdata(:)];
             group = [repmat('WT')];
         end
         % Perform 2-way ANOVA
 
-        % removing NaNs
+        % --- Remove NaNs ---
         validIdx = ~isnan(dat);
         dat = dat(validIdx);
         group = group(validIdx);
         block = block(validIdx);
+        subject = subject(validIdx);
 
-        [p, tbl, stats] = anovan(dat, {group, block}, ...
-            'model', 'linear', ...
-            'varnames', {'Group', 'Block'});
-        % display p-value for group in the figure
-        
-%         tblData = table(dat, categorical(group), categorical(block), ...
-%         'VariableNames', {'Y', 'Group', 'Block'});
-%         lme = fitlme(tblData, 'Y ~ Group*Block + (1|Block)');
-%         disp(anova(lme))
+        % --- Convert to table for fitlme ---
+        tblData = table(dat, categorical(group), block, categorical(subject), ...
+            'VariableNames', {'Y', 'Group', 'Block', 'Subject'});
 
-       text(1, 0.25, ['P(geno): ', num2str(p(1), '%.3g')], 'FontSize', 15)
-        text(1, 0.15, ['P(learn): ', num2str(p(2), '%.3g')], 'FontSize', 15)
+        % Ensure WT is the reference genotype
+        tblData.Group = reordercats(tblData.Group, {'WT', 'HET'});
+        tblData.Block2 = tblData.Block.^2;
+        % --- Fit linear mixed-effects model ---
+        % Block as random intercept (repeated measure within Subject)
+        % You can also try (1 + Block|Subject) if you expect learning slopes differ per subject
+        lme = fitlme(tblData, 'Y ~ Group*Block + Group * Block2 + (Block|Subject)');
+
+        % --- Display results ---
+        disp(anova(lme)); % Mixed ANOVA table
+        pTable = anova(lme);
+        pGroup = pTable.pValue(strcmp(pTable.Term, 'Group'));
+        pLearn = pTable.pValue(strcmp(pTable.Term, 'Block'));
+        pInt   = pTable.pValue(strcmp(pTable.Term, 'Group:Block'));
+
+        % --- Show p-values on figure ---
+        text(1, 0.25, ['P(geno): ', num2str(pGroup, '%.3g')], 'FontSize', 15)
+        text(1, 0.18, ['P(learn): ', num2str(pLearn, '%.3g')], 'FontSize', 15)
+        text(1, 0.11, ['P(geno/timeslearn): ', num2str(pInt, '%.3g')], 'FontSize', 15)
     end
     if pp==nPlot
         legend(genotype_list, 'Location', 'east','FontSize', 14)
@@ -120,7 +179,7 @@ for pp = 1:nPlot
         if ismember('KO', genotype_list) & length(genotype_list)==2
             text(5, 1, ['KO ', num2str(nHet)], 'FontSize', 12 );
         else
-        text(5, 1, ['HET ', num2str(nHet)], 'FontSize', 12 );
+            text(5, 1, ['HET ', num2str(nHet)], 'FontSize', 12 );
         end
     end
 end
@@ -140,78 +199,78 @@ delete(findall(0, 'Type', 'figure'))
 
 perf_AUC = squeeze(nanmean((data-0.5), 2));
 figure
-    for gg = 1:length(genotype_list)
-        % plot with blocks that have more than 3 animals
+for gg = 1:length(genotype_list)
+    % plot with blocks that have more than 3 animals
 
-        mean_perf = nanmean(perf_AUC(strcmp(genotype, genotype_list{gg}),:),1);
-       
-        ste_perf = nanstd(perf_AUC(strcmp(genotype, genotype_list{gg}),:),1)/sum(strcmp(genotype, genotype_list{gg}));
+    mean_perf = nanmean(perf_AUC(strcmp(genotype, genotype_list{gg}),:),1);
 
-        %plot(mean_perf)
-        hold on;
-        errorbar(1:nPlot, mean_perf, ste_perf, 'LineWidth', 2,'Color', color_list{gg})
+    ste_perf = nanstd(perf_AUC(strcmp(genotype, genotype_list{gg}),:),1)/sum(strcmp(genotype, genotype_list{gg}));
 
-        % plot each session in thinner lines
-        tempData= perf_AUC(strcmp(genotype, genotype_list{gg}),:);
-        for tt =1:size(tempData,1)
-            plot(1:nPlot, tempData(tt,:), 'LineWidth', 0.5, 'Color', color_list{gg},'LineStyle',':','HandleVisibility', 'off')
-        end
+    %plot(mean_perf)
+    hold on;
+    errorbar(1:nPlot, mean_perf, ste_perf, 'LineWidth', 2,'Color', color_list{gg})
 
+    % plot each session in thinner lines
+    tempData= perf_AUC(strcmp(genotype, genotype_list{gg}),:);
+    for tt =1:size(tempData,1)
+        plot(1:nPlot, tempData(tt,:), 'LineWidth', 0.5, 'Color', color_list{gg},'LineStyle',':','HandleVisibility', 'off')
     end
-    ylim([-0.5, 0.5]);
-    %xticks([1,2,3,4]);
-    %legend(genotype_list)
-    ylabel('Performance (AUC)');
-    xticks(0:nPlot);
+
+end
+ylim([-0.5, 0.5]);
+%xticks([1,2,3,4]);
+%legend(genotype_list)
+ylabel('Performance (AUC)');
+xticks(0:nPlot);
 xticklabels(0:nPlot);
 xlim([0.75,nPlot+0.25]);
 xlabel('Sessions')
 title(['AUC for ', tlabel]);
-        legend(genotype_list, 'Location', 'southeast')
-        legend('Box','off')
+legend(genotype_list, 'Location', 'southeast')
+legend('Box','off')
 
 % ANOVA
-    if ismember('HEM', genotype_list) % nlgn3
-        Hetdata = perf_AUC(strcmp(genotype, 'HEM'),:)';
-             nHet = sum(~all(isnan(Hetdata), 2));
-    elseif ismember('KO', genotype_list) && length(genotype_list)==3 % if it's cntnap, compare KO with WT
-        Hetdata = perf_AUC(strcmp(genotype, 'HET'),:)';
-             nHet = sum(~all(isnan(Hetdata), 2));
-        KOdata = perf_AUC(strcmp(genotype, 'KO'), :)';
-             nHet = sum(~all(isnan(KOdata), 2));
-    elseif ismember('KO', genotype_list) & length(genotype_list)==2
-        Hetdata = perf_AUC(strcmp(genotype, 'KO'),:)';
-             nHet = sum(~all(isnan(Hetdata), 2));
-    else
-        Hetdata = perf_AUC(strcmp(genotype, 'HET'),:)';
-             nHet = sum(~all(isnan(Hetdata), 2));
-    end
-    WTdata = perf_AUC(strcmp(genotype, 'WT'),:)';
-    nWT = sum(strcmp(genotype, 'WT'));
-    
-    % check if there is empty data (not enough sessions/animals)
-    if ~isempty(WTdata) && ~isempty(Hetdata)
-        if length(genotype_list) == 2
-            dat = [WTdata(:); Hetdata(:)];
-    
+if ismember('HEM', genotype_list) % nlgn3
+    Hetdata = perf_AUC(strcmp(genotype, 'HEM'),:)';
+    nHet = sum(~all(isnan(Hetdata), 2));
+elseif ismember('KO', genotype_list) && length(genotype_list)==3 % if it's cntnap, compare KO with WT
+    Hetdata = perf_AUC(strcmp(genotype, 'HET'),:)';
+    nHet = sum(~all(isnan(Hetdata), 2));
+    KOdata = perf_AUC(strcmp(genotype, 'KO'), :)';
+    nHet = sum(~all(isnan(KOdata), 2));
+elseif ismember('KO', genotype_list) & length(genotype_list)==2
+    Hetdata = perf_AUC(strcmp(genotype, 'KO'),:)';
+    nHet = sum(~all(isnan(Hetdata), 2));
+else
+    Hetdata = perf_AUC(strcmp(genotype, 'HET'),:)';
+    nHet = sum(~all(isnan(Hetdata), 2));
+end
+WTdata = perf_AUC(strcmp(genotype, 'WT'),:)';
+nWT = sum(strcmp(genotype, 'WT'));
+
+% check if there is empty data (not enough sessions/animals)
+if ~isempty(WTdata) && ~isempty(Hetdata)
+    if length(genotype_list) == 2
+        dat = [WTdata(:); Hetdata(:)];
+
         % Create grouping variables
-            group = [repmat({'WT'}, numel(WTdata), 1); repmat({'HET'}, numel(Hetdata), 1)]; % Group labels
-            session = [repmat((1:nPlot)', size(WTdata, 2), 1); repmat((1:nPlot)', size(Hetdata, 2), 1)];   % Quantile labels
-        elseif length(genotype_list) == 3
-            dat = [WTdata(:); Hetdata(:);KOdata(:)];
-            session = [repmat((1:nPlot)', size(WTdata, 2), 1); 
-                repmat((1:nPlot)', size(Hetdata, 2), 1);
-                 repmat((1:nPlot)', size(KOdata, 2), 1)];
-        end
-        % Perform 2-way ANOVA
-        [p, tbl, stats] = anovan(dat, {group, session}, ...
-            'model', 'interaction', ...
-            'varnames', {'Group', 'Session'});
-        % display p-value for group in the figure
-    
-        text(1.5, 0.5, ['P(geno): ', num2str(p(1), '%.3g')], 'FontSize', 20 )
-        text(1.5, 0.45, ['P(reversal): ', num2str(p(2), '%.3g')], 'FontSize', 20 )
+        group = [repmat({'WT'}, numel(WTdata), 1); repmat({'HET'}, numel(Hetdata), 1)]; % Group labels
+        session = [repmat((1:nPlot)', size(WTdata, 2), 1); repmat((1:nPlot)', size(Hetdata, 2), 1)];   % Quantile labels
+    elseif length(genotype_list) == 3
+        dat = [WTdata(:); Hetdata(:);KOdata(:)];
+        session = [repmat((1:nPlot)', size(WTdata, 2), 1);
+            repmat((1:nPlot)', size(Hetdata, 2), 1);
+            repmat((1:nPlot)', size(KOdata, 2), 1)];
     end
+    % Perform 2-way ANOVA
+    [p, tbl, stats] = anovan(dat, {group, session}, ...
+        'model', 'interaction', ...
+        'varnames', {'Group', 'Session'});
+    % display p-value for group in the figure
+
+    text(1.5, 0.5, ['P(geno): ', num2str(p(1), '%.3g')], 'FontSize', 20 )
+    text(1.5, 0.45, ['P(reversal): ', num2str(p(2), '%.3g')], 'FontSize', 20 )
+end
 
 print(gcf,'-dpng',fullfile(savefigpath,['Performance AUC in the  ', tlabel, ' sessions in block-session']));    %png format
 saveas(gcf, fullfile(savefigpath, ['Performance in the AUC', tlabel, ' sessions in block-session']), 'fig');

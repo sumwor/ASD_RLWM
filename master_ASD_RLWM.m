@@ -9,10 +9,10 @@
 
 root_dir = 'Z:\HongliWang\Juvi_ASD Deterministic';
 
-strain_list = {'ChD8'; 'Nlgn3'; 'Cntnap2_KO'; 'TSC2';'TSC2_adult';'Shank3B'; 'Syngap'};
+strain_list = {'ChD8'; 'Nlgn3'; 'Cntnap2_KO'; 'TSC2';'TSC2_adult';'TSC2_adult_withJC';'Shank3B'; 'Syngap'};
 
 %% add for loop later
-strainNum =1;
+strainNum =3;
 
 % save the dataIndex data
 dataIndexPath = fullfile(root_dir, strain_list{strainNum},'dataIndex.csv');
@@ -288,8 +288,6 @@ files = ASD_hybrid_dataPrep(dataIndex,savedatapath);
 % fit the model
 ASD_hybrid_modelFit(dataIndex, files, savedatapath, savefigpath);
 
-% estimate latent variable based on fit result
-ASD_hybrid_modelEstimate(savedatapath, savefitpath)
 %% check how trial number build up over time
 
 %% go over every session to plot performance in blocks for
@@ -311,7 +309,7 @@ ASD_odor_WT_summary(strain_list, root_dir);
 
 
 %% rotarod performance
-strainNum =1;
+strainNum =3;
 rotarod_path = fullfile(root_dir, strain_list{strainNum}, 'Data','rotarod.csv');
 saverotpath = fullfile(root_dir, strain_list{strainNum},'Summary', 'Rotarod');
 if ~exist(saverotpath)
@@ -321,4 +319,4 @@ rot_data = readtable(rotarod_path);
 ASD_rotarod_summary(rot_data, saverotpath, strain_list{strainNum});
 
 %% correlate performance between odor and rotarod
-ASD_odor_rotarod(strain_list,strainNum, root_dir);
+ASD_odor_rotarod(dataIndex, rot_data,strain_list,strainNum, root_dir);

@@ -44,21 +44,23 @@ for ii = 1:6
     % put mixed linear result in different sessions together
 end
 
-% 
-% for ii = 1:6
-%     prepDataPath = files{ii};
-%         filename = regexp(prepDataPath, '(?<=data4model).*', 'match');
-%     label = filename{1}(1:end-4);
-%  psymodelName = fullfile(savedatapath, ['PsyFit',label, '.csv']);
-% estimate_Latent_fit_psy(psymodelName, dataIndex, label, savefigpath)
-% end
+
+for ii = 1:6
+    prepDataPath = files{ii};
+        filename = regexp(prepDataPath, '(?<=data4model).*', 'match');
+    label = filename{1}(1:end-4);
+ psymodelName = fullfile(savedatapath, ['PsyFit',label, '.csv']);
+estimate_Latent_fit_psy(psymodelName, dataIndex, label, savefigpath)
+end
 
 
 % 3 coefficient + baseline for 6 sessions in WT/HET genotypes 
 vars = {'response time', 'sample time', 'decision time', 'ITI'};
 structVar = {'rt', 'st', 'dt', 'iti'};
 
-% load AIC as well
+% also make a plot of average response time 
+
+% load AIC and average response time as well
 for ii = 1:6
     prepDataPath = files{ii};
     filename = regexp(prepDataPath, '(?<=data4model).*', 'match');
@@ -70,7 +72,9 @@ for ii = 1:6
         subjects = psy_fit.Animal;
         nSubject = length(subjects);
         genotypes = fit_result.genotypes;
-        weight_session = nan(nSubject, 6, 2,  3);
+        weight_session = nan(nSubject, 6, 2, 3);
+        meanRT_session = nan(nSubject, 6);
+        meanRT_geno = cell(nSubject, 6);
         GLMr = struct;
         for vv = 1:length(vars)
             currVar = vars{vv};
@@ -95,8 +99,8 @@ for ii = 1:6
             txt = fileread(modelpath);
             psy_latent = jsondecode(txt);
             if size(psy_latent.wMode,2) > 200
-                weight_session(ss, ii, 1,:) = mean(psy_latent.wMode(:,1:50),2);
-                weight_session(ss,ii,2,:) = mean(psy_latent.wMode(:,end-49:end),2);
+                weight_session(ss, ii, 1,:) = mean(psy_latent.wMode(:,1:60),2);
+                weight_session(ss,ii,2,:) = mean(psy_latent.wMode(:,end-59:end),2);
             end
         end
 
@@ -122,7 +126,12 @@ for ii = 1:6
 
 
     end
-
+    
+    % load average resposne time
+    meanRTPath= fullfile(savedatapath, ['meanRT', label,'.mat']);
+    load(meanRTPath);
+    meanRT_session(1:length(RTData.meanRT),ii) = RTData.meanRT;
+    [meanRT_geno{1:length(RTData.meanRT),ii}] = RTData.geno{:};
 end
 
 All_geno = unique(genotypes);
@@ -135,82 +144,448 @@ elseif sum(contains(All_geno,'HEM'))>0
     mutGene = 'HEM';
 end
 
+%% plot average response time
+figure;
+
+%% ======== Subplot 1: AB sessions (1–3) ========
+subplot(2,1,1)
+
+% --- WT group ---
+wt_idx = strcmp(meanRT_geno(:,1), 'WT');
+wt_data = meanRT_session(wt_idx, 1:3);
+wt_mean = nanmean(wt_data, 1);
+wt_ste  = nanstd(wt_data, [], 1) ./ sqrt(sum(~isnan(wt_data), 1));
+
+% --- Mutant group ---
+mut_idx = strcmp(meanRT_geno(:,1), mutGene);
+mut_data = meanRT_session(mut_idx, 1:3);
+mut_mean = nanmean(mut_data, 1);
+mut_ste  = nanstd(mut_data, [], 1) ./ sqrt(sum(~isnan(mut_data), 1));
+
+% --- Plot means + error bars ---
+hold on;
+x = 1:3;
+errorbar(x, wt_mean, wt_ste, '-o', 'LineWidth', 1.5, 'DisplayName', 'WT');
+errorbar(x, mut_mean, mut_ste, '-o', 'LineWidth', 1.5, 'DisplayName', mutGene);
+
+xlabel('Session');
+ylabel('Mean RT');
+lgd = legend('show');
+set(lgd, 'box' , 'off')
+xlim([0.5 3.5])
+xticks(1:3)
+box off;
+title('Response time across AB 1–3 sessions (mean ± SEM)');
+
+% --- Statistical test: Mann–Whitney (ranksum) for each session ---
+pvals = nan(1,3);
+for i = 1:3
+    x1 = wt_data(:,i);
+    x2 = mut_data(:,i);
+    % remove NaNs
+    x1 = x1(~isnan(x1)); x2 = x2(~isnan(x2));
+    if ~isempty(x1) && ~isempty(x2)
+        pvals(i) = ranksum(x1, x2);
+    end
+end
+
+% --- Multiple comparison correction (FDR or Bonferroni) ---
+pvals_corr = mafdr(pvals, 'BHFDR', true);  % Benjamini–Hochberg FDR
+
+% --- Annotate p-values on the figure ---
+ymax = max([wt_mean+wt_ste, mut_mean+mut_ste], [], 'all');
+for i = 1:3
+    text(i, ymax*0.95, sprintf('p=%.3f', pvals_corr(i)), ...
+        'HorizontalAlignment', 'center', 'FontSize', 20);
+    if pvals_corr(i) < 0.05
+        text(i, ymax*0.65, '*', 'HorizontalAlignment', 'center', 'FontSize', 14);
+    end
+end
 
 
-% scatter plot of last sessions end weight and next session's start weight
+%% ======== Subplot 2: CD sessions (4–6) ========
+subplot(2,1,2)
+
+% --- WT group ---
+wt_idx = strcmp(meanRT_geno(:,4), 'WT');
+wt_data = meanRT_session(wt_idx, 4:6);
+wt_mean = nanmean(wt_data, 1);
+wt_ste  = nanstd(wt_data, [], 1) ./ sqrt(sum(~isnan(wt_data), 1));
+
+% --- Mutant group ---
+mut_idx = strcmp(meanRT_geno(:,4), mutGene);
+mut_data = meanRT_session(mut_idx, 4:6);
+mut_mean = nanmean(mut_data, 1);
+mut_ste  = nanstd(mut_data, [], 1) ./ sqrt(sum(~isnan(mut_data), 1));
+
+% --- Plot means + error bars ---
+hold on;
+x = 1:3;
+errorbar(x, wt_mean, wt_ste, '-o', 'LineWidth', 1.5, 'DisplayName', 'WT');
+errorbar(x, mut_mean, mut_ste, '-o', 'LineWidth', 1.5, 'DisplayName', mutGene);
+
+xlabel('Session');
+ylabel('Mean RT');
+lgd = legend('show');
+set(lgd, 'box' , 'off')
+xlim([0.5 3.5])
+xticks(1:3)
+box off;
+title('Response time across CD 1–3 sessions (mean ± SEM)');
+
+% --- Statistical test: Mann–Whitney (ranksum) for each session ---
+pvals = nan(1,3);
+for i = 1:3
+    x1 = wt_data(:,i);
+    x2 = mut_data(:,i);
+    x1 = x1(~isnan(x1)); x2 = x2(~isnan(x2));
+    if ~isempty(x1) && ~isempty(x2)
+        pvals(i) = ranksum(x1, x2);
+    end
+end
+
+% --- Multiple comparison correction ---
+pvals_corr = mafdr(pvals, 'BHFDR', true);
+
+% --- Annotate p-values ---
+ymax = max([wt_mean+wt_ste, mut_mean+mut_ste], [], 'all');
+for i = 1:3
+    text(i, ymax*0.85, sprintf('p=%.3f', pvals_corr(i)), ...
+        'HorizontalAlignment', 'center', 'FontSize', 20);
+    if pvals_corr(i) < 0.05
+        text(i, ymax*0.65, '*', 'HorizontalAlignment', 'center', 'FontSize', 14);
+    end
+end
+    print(gcf,'-dpng',fullfile(savefigpath,'Response time'));    %png format
+    saveas(gcf, fullfile(savefigpath,'Response time'), 'fig');
+    saveas(gcf, fullfile(savefigpath,'Response time'),'svg');
+
+%% scatter plot of last sessions end weight and next session's start weight
 WTMask = strcmp(genotypes,'WT');
 mutMask = strcmp(genotypes,mutGene);
 
-% get percentage weight (weight next session trial 1-50 / weight last session
-% trial last 1-60
+% get percentage weight (weight next session trial 1-100 / weight last session
+% trial last 1-100
+% session 1-2
+% session 2-3
+% weight_session: subject x session (1-6) x start(1)/end(2) x weight(3)
 
-WT_weight1 = abs(squeeze(weight_session(WTMask, 1, 2, :))./squeeze(weight_session(WTMask, 1, 1, :)));
-WT_weight2 = abs((squeeze(weight_session(WTMask, 2, 1, :))-squeeze(weight_session(WTMask, 1, 2, :)))./squeeze(weight_session(WTMask, 1, 2, :)));
-WT_weight3 = abs((squeeze(weight_session(WTMask, 3, 1, :))-squeeze(weight_session(WTMask, 2, 2, :)))./squeeze(weight_session(WTMask, 2, 2, :)));
+WT_weight1_rel_end = squeeze(abs(weight_session(WTMask, 1, 2, :))./sum(abs(weight_session(WTMask,1,2,:)),4));
+WT_weight2_rel_end = squeeze(abs(weight_session(WTMask,2,2,:))./sum(abs(weight_session(WTMask,2,2,:)),4));
+WT_weight3_rel_end = squeeze(abs(weight_session(WTMask,3,2,:))./sum(abs(weight_session(WTMask,3,2,:)),4));
+WT_weight4_rel_end = squeeze(abs(weight_session(WTMask, 4, 2, :))./sum(abs(weight_session(WTMask,4,2,:)),4));
+WT_weight5_rel_end = squeeze(abs(weight_session(WTMask,5,2,:))./sum(abs(weight_session(WTMask,5,2,:)),4));
+WT_weight6_rel_end = squeeze(abs(weight_session(WTMask,6,2,:))./sum(abs(weight_session(WTMask,6,2,:)),4));
 
-mut_weight1 = abs(squeeze(weight_session(mutMask, 1, 2, :))./squeeze(weight_session(mutMask, 1, 1, :)));
-mut_weight2 = abs((squeeze(weight_session(mutMask, 2, 1, :))-squeeze(weight_session(mutMask, 1, 2, :)))./squeeze(weight_session(mutMask, 1, 2, :)));
-mut_weight3 = abs((squeeze(weight_session(mutMask, 3, 1, :))-squeeze(weight_session(mutMask, 2, 2, :)))./squeeze(weight_session(mutMask, 2, 2, :)));
+WT_weight1_rel_start = squeeze(abs(weight_session(WTMask, 1,1, :))./sum(abs(weight_session(WTMask,1,1,:)),4));
+WT_weight2_rel_start = squeeze(abs(weight_session(WTMask,2,1,:))./sum(abs(weight_session(WTMask,2,1,:)),4));
+WT_weight3_rel_start = squeeze(abs(weight_session(WTMask,3,1,:))./sum(abs(weight_session(WTMask,3,1,:)),4));
+WT_weight4_rel_start = squeeze(abs(weight_session(WTMask, 4,1, :))./sum(abs(weight_session(WTMask,4,1,:)),4));
+WT_weight5_rel_start = squeeze(abs(weight_session(WTMask,5,1,:))./sum(abs(weight_session(WTMask,5,1,:)),4));
+WT_weight6_rel_start = squeeze(abs(weight_session(WTMask,6,1,:))./sum(abs(weight_session(WTMask,6,1,:)),4));
+
+Mut_weight1_rel_end = squeeze(abs(weight_session(mutMask, 1, 2, :))./sum(abs(weight_session(mutMask,1,2,:)),4));
+Mut_weight2_rel_end = squeeze(abs(weight_session(mutMask,2,2,:))./sum(abs(weight_session(mutMask,2,2,:)),4));
+Mut_weight3_rel_end = squeeze(abs(weight_session(mutMask,3,2,:))./sum(abs(weight_session(mutMask,3,2,:)),4));
+Mut_weight4_rel_end = squeeze(abs(weight_session(mutMask, 4, 2, :))./sum(abs(weight_session(mutMask,4,2,:)),4));
+Mut_weight5_rel_end = squeeze(abs(weight_session(mutMask,5,2,:))./sum(abs(weight_session(mutMask,5,2,:)),4));
+Mut_weight6_rel_end = squeeze(abs(weight_session(mutMask,6,2,:))./sum(abs(weight_session(mutMask,6,2,:)),4));
+
+Mut_weight1_rel_start = squeeze(abs(weight_session(mutMask, 1,1, :))./sum(abs(weight_session(mutMask,1,1,:)),4));
+Mut_weight2_rel_start = squeeze(abs(weight_session(mutMask,2,1,:))./sum(abs(weight_session(mutMask,2,1,:)),4));
+Mut_weight3_rel_start = squeeze(abs(weight_session(mutMask,3,1,:))./sum(abs(weight_session(mutMask,3,1,:)),4));
+Mut_weight4_rel_start = squeeze(abs(weight_session(mutMask, 4,1, :))./sum(abs(weight_session(mutMask,4,1,:)),4));
+Mut_weight5_rel_start = squeeze(abs(weight_session(mutMask,5,1,:))./sum(abs(weight_session(mutMask,5,1,:)),4));Mut_weight6_rel_start = squeeze(abs(weight_session(mutMask,6,1,:))./sum(abs(weight_session(mutMask,6,1,:)),4));
+
+%% absolute weight
+WT_weight1_end = squeeze(abs(weight_session(WTMask, 1, 2, :)));
+WT_weight2_end = squeeze(abs(weight_session(WTMask,2,2,:)));
+WT_weight3_end = squeeze(abs(weight_session(WTMask,3,2,:)));
+WT_weight4_end = squeeze(abs(weight_session(WTMask, 4, 2, :)));
+WT_weight5_end = squeeze(abs(weight_session(WTMask,5,2,:)));
+WT_weight6_end = squeeze(abs(weight_session(WTMask,6,2,:)));
+
+WT_weight1_start = squeeze(abs(weight_session(WTMask, 1,1, :)));
+WT_weight2_start = squeeze(abs(weight_session(WTMask,2,1,:)));
+WT_weight3_start = squeeze(abs(weight_session(WTMask,3,1,:)));
+WT_weight4_start = squeeze(abs(weight_session(WTMask, 4,1, :)));
+WT_weight5_start = squeeze(abs(weight_session(WTMask,5,1,:)));
+WT_weight6_start = squeeze(abs(weight_session(WTMask,6,1,:)));
+
+Mut_weight1_end = squeeze(abs(weight_session(mutMask, 1, 2, :)));
+Mut_weight2_end = squeeze(abs(weight_session(mutMask,2,2,:)));
+Mut_weight3_end = squeeze(abs(weight_session(mutMask,3,2,:)));
+Mut_weight4_end = squeeze(abs(weight_session(mutMask, 4, 2, :)));
+Mut_weight5_end = squeeze(abs(weight_session(mutMask,5,2,:)));
+Mut_weight6_end = squeeze(abs(weight_session(mutMask,6,2,:)));
+
+Mut_weight1_start = squeeze(abs(weight_session(mutMask, 1,1, :)));
+Mut_weight2_start = squeeze(abs(weight_session(mutMask,2,1,:)));
+Mut_weight3_start = squeeze(abs(weight_session(mutMask,3,1,:)));
+Mut_weight4_start = squeeze(abs(weight_session(mutMask, 4,1, :)));
+Mut_weight5_start = squeeze(abs(weight_session(mutMask,5,1,:)));
+Mut_weight6_start = squeeze(abs(weight_session(mutMask,6,1,:)));
+
 
 colWT = [0.3 0.6 0.9];
 colMut = [0.9 0.4 0.4];
 
-weights = {log10(WT_weight2), log10(WT_weight3); log10(mut_weight2), log10(mut_weight3)};
-weightNames = {'Session 2/1','Sesion 3/2'};
-varNames = {'Bias','Stim','Stick'};
-
+% plot WT T
+predictors = {'Bias', 'Stimulus', 'Stickiness'};
 figure;
-sgtitle('Percentage weight change in the next day')
+set(gcf, 'Position', [100 100 900 300]); % wider figure for 3 subplots
 
-for w = 1:2   % 1=weight2, 2=weight3
-    for v = 1:3   % 1=bias, 2=stim, 3=stick
-        subplot(3,2,(v-1)*2 + w); hold on;
-
-        % WT and Mut data
-        wtData = squeeze(weights{1,w}(:,v));
-        mutData = squeeze(weights{2,w}(:,v));
-
-        % remove outliers
-        wtNoOut = rmoutliers(wtData);
-        mutNoOut = rmoutliers(mutData);
-
-        % combine
-        data = [wtNoOut; mutNoOut];
-        group = [repmat({'WT'},numel(wtNoOut),1); repmat({'Mut'},numel(mutNoOut),1)];
-        xpos = [ones(size(wtNoOut)); 2*ones(size(mutNoOut))];
-
-        % boxplot without showing outliers
-        boxplot(data, xpos, ...
-                'Colors',[colWT; colMut], ...
-                'Symbol','')
-
-        % scatter overlay
-        scatter(ones(size(wtNoOut)) + (rand(size(wtNoOut))-0.5)*0.2, wtNoOut, ...
-                30, colWT, 'filled', 'MarkerFaceAlpha',0.6)
-        scatter(2*ones(size(mutNoOut)) + (rand(size(mutNoOut))-0.5)*0.2, mutNoOut, ...
-                30, colMut, 'filled', 'MarkerFaceAlpha',0.6)
-
-        % adjust ylim to exclude outliers
-        ymin = min(data); ymax = max(data);
-        padding = 0.1*(ymax-ymin);
-        ylim([ymin-padding, ymax+padding]);
-
-        set(gca,'XTickLabel',{'WT','Mut'})
-        if w==1
-            ylabel(varNames{v})
-        end
-        if v==1
-            if w==1
-            title('Session 2/1')
-            elseif w==2
-                title('Session 3/2')
-            end
-        end
-
-        set(gca,'Box','off')
+for p = 1:3  % loop over predictors
+    subplot(1,3,p); hold on;
+    
+    % concatenate sessions for each group (subjects x sessions)
+    WT_all = [WT_weight1_rel_end(:,p), WT_weight2_rel_end(:,p), WT_weight3_rel_end(:,p)];
+    Mut_all = [Mut_weight1_rel_end(:,p), Mut_weight2_rel_end(:,p), Mut_weight3_rel_end(:,p)];
+    
+    % plot individual subjects (WT)
+    plot(1:3, WT_all', '--', 'Color', [colWT 0.5], 'LineWidth', 0.8, 'HandleVisibility', 'off');
+    % plot individual subjects (Mut)
+    plot(1:3, Mut_all', '--', 'Color', [colMut 0.5], 'LineWidth', 0.8, 'HandleVisibility', 'off');
+    
+    % calculate mean and SEM
+    WT_mean = mean(WT_all,1,'omitnan');
+    WT_sem  = std(WT_all,0,1,'omitnan') ./ sqrt(sum(~isnan(WT_all(:,1))));
+    Mut_mean = mean(Mut_all,1,'omitnan');
+    Mut_sem  = std(Mut_all,0,1,'omitnan') ./ sqrt(sum(~isnan(Mut_all(:,1))));
+    
+    % plot mean ± SEM
+    h1=errorbar(1:3, WT_mean, WT_sem, 'o-', 'Color', colWT, ...
+        'MarkerFaceColor', colWT, 'LineWidth', 2, 'CapSize', 8);
+    h2=errorbar(1:3, Mut_mean, Mut_sem, 'o-', 'Color', colMut, ...
+        'MarkerFaceColor', colMut, 'LineWidth', 2, 'CapSize', 8);
+    
+    % format
+    xlim([0.8 3.2]);
+    xticks(1:3);
+    xticklabels({'1','2','3'});
+    if p==2
+        xlabel('Session')
+    end
+    ylabel('Relative weight');
+    title([predictors{p}]);
+    box off;
+    
+    if p == 3
+        legend([h1 h2], {'WT', mutGene}, 'Location','best', 'Box','off');
     end
 end
 
+sgtitle('Average relative weight across AB sessions');
+
+%% savings across days
+figure;
+set(gcf, 'Position', [100 100 900 300]);
+
+% Store p-values for FDR correction
+pvals = nan(3,2);
+
+for p = 1:3  % predictors
+    subplot(2,3,p); hold on;
+    
+    % Extract WT and Mut data
+    % WT_end = {WT_weight1_rel_end(:,p), WT_weight4_rel_end(:,p)};
+    % WT_start = {WT_weight2_rel_start(:,p), WT_weight5_rel_start(:,p)};
+    % Mut_end = {Mut_weight1_rel_end(:,p), Mut_weight4_rel_end(:,p)};
+    % Mut_start = {Mut_weight2_rel_start(:,p), Mut_weight5_rel_start(:,p)};
+    
+    WT_end = {WT_weight1_end(:,p),WT_weight2_end(:,p), WT_weight4_end(:,p),WT_weight5_end(:,p)};
+    WT_start = {WT_weight2_start(:,p),WT_weight3_start(:,p), WT_weight5_start(:,p),WT_weight6_start(:,p)};
+    Mut_end = {Mut_weight1_end(:,p),Mut_weight2_end(:,p), Mut_weight4_end(:,p),Mut_weight5_end(:,p)};
+    Mut_start = {Mut_weight2_start(:,p),Mut_weight2_start(:,p), Mut_weight5_start(:,p),Mut_weight6_start(:,p)};
+
+
+    % Combine sequentially for plotting
+    WT_seq = [WT_end{1}, WT_start{1}, WT_end{2}, WT_start{2}];
+    Mut_seq = [Mut_end{1}, Mut_start{1}, Mut_end{2}, Mut_start{2}];
+    
+    % Plot individual subjects (WT)
+    for i = 1:size(WT_seq,1)
+        plot([1 2], WT_seq(i,[1 2]), '--', 'Color', [colWT 0.4], 'LineWidth', 0.8, 'HandleVisibility','off');
+        plot([3 4], WT_seq(i,[3 4]), '--', 'Color', [colWT 0.4], 'LineWidth', 0.8, 'HandleVisibility','off');
+    end
+    % Plot individual subjects (Mut)
+    for i = 1:size(Mut_seq,1)
+        plot([1 2], Mut_seq(i,[1 2]), '--', 'Color', [colMut 0.4], 'LineWidth', 0.8, 'HandleVisibility','off');
+        plot([3 4], Mut_seq(i,[3 4]), '--', 'Color', [colMut 0.4], 'LineWidth', 0.8, 'HandleVisibility','off');
+    end
+    
+    % --- Compute means and SEM ---
+    WT_mean = mean(WT_seq,1,'omitnan');
+    WT_sem  = std(WT_seq,0,1,'omitnan') ./ sqrt(sum(~isnan(WT_seq(:,1))));
+    Mut_mean = mean(Mut_seq,1,'omitnan');
+    Mut_sem  = std(Mut_seq,0,1,'omitnan') ./ sqrt(sum(~isnan(Mut_seq(:,1))));
+    
+    % --- Plot means and error bars ---
+    h1 = errorbar([1 2], WT_mean([1 2]), WT_sem([1 2]), 'o-', ...
+        'Color', colWT, 'MarkerFaceColor', colWT, 'LineWidth', 2, 'CapSize', 8);
+    errorbar([3 4], WT_mean([3 4]), WT_sem([3 4]), 'o-', ...
+        'Color', colWT, 'MarkerFaceColor', colWT, 'LineWidth', 2, 'CapSize', 8, 'HandleVisibility','off');
+    
+    h2 = errorbar([1 2], Mut_mean([1 2]), Mut_sem([1 2]), 'o-', ...
+        'Color', colMut, 'MarkerFaceColor', colMut, 'LineWidth', 2, 'CapSize', 8);
+    errorbar([3 4], Mut_mean([3 4]), Mut_sem([3 4]), 'o-', ...
+        'Color', colMut, 'MarkerFaceColor', colMut, 'LineWidth', 2, 'CapSize', 8, 'HandleVisibility','off');
+    
+    % --- Format ---
+    xlim([0.7 4.3]);
+    xticks(1:4);
+    xticklabels({'1 end','2 start','2 end','3 start'});
+    ylabel('Relative weight');
+    if p<4
+        title(predictors{p});
+    end
+    box off;
+
+    % Build wide-format data for each subject
+
+    % segment 2: 2end - 3start
+    pvals(p,2) = ranksum(WT_slope23, Mut_slope23);
+
+    if p == 1
+        legend([h1 h2], {'WT mean', 'Mut mean'}, 'Location', 'best', 'Box', 'off');
+    end
+end
+
+% --- FDR correction ---
+[~, ~, ~, p_fdr] = fdr_bh(pvals_all, 0.05, 'pdep', 'yes');
+
+% --- Plot corrected p-values ---
+for p = 1:3
+    subplot(1,3,p); hold on;
+    idx = p_idx{p};
+    y_max = max(ylim);
+    y_text = y_max * 0.95;
+    
+    % WT comparisons
+    text(1.5, y_text, sprintf('WT: p_{1-2}=%.3f\nWT: p_{2-3}=%.3f', p_fdr(idx(1)), p_fdr(idx(2))), ...
+        'Color', colWT, 'HorizontalAlignment', 'center', 'FontSize', 8);
+    
+    % Mut comparisons
+    text(2.5, y_text*0.9, sprintf('Mut: p_{1-2}=%.3f\nMut: p_{2-3}=%.3f', p_fdr(idx(3)), p_fdr(idx(4))), ...
+        'Color', colMut, 'HorizontalAlignment', 'center', 'FontSize', 8);
+end
+
+sgtitle('Session transitions (End → Start) with Wilcoxon tests and FDR correction');
+
+% test for differnce
+for p =1:3
+WT_tbl = table( (1:size(WT_weight1_rel_end,1))', ...
+    WT_weight1_rel_end(:,p), WT_weight2_rel_start(:,p), ...
+    repmat({'WT'}, size(WT_weight1_rel_end,1),1), ...
+    'VariableNames', {'Subject','w1_end','w2_start','Genotype'});
+
+Mut_tbl = table( (1:size(Mut_weight1_rel_end,1))'+100, ...
+    Mut_weight1_rel_end(:,p), Mut_weight2_rel_start(:,p), ...
+    repmat({'Mut'}, size(Mut_weight1_rel_end,1),1), ...
+    'VariableNames', {'Subject','w1_end','w2_start','Genotype'});
+
+T = [WT_tbl; Mut_tbl];
+
+% Define within-subject design (2 levels)
+within = table({'1_end';'2_start'}, 'VariableNames', {'Session'});
+
+% Fit repeated-measures ANOVA
+rm = fitrm(T, 'w1_end,w2_start ~ Genotype', 'WithinDesign', within);
+
+% Run repeated-measures ANOVA
+ranovatbl = ranova(rm, 'WithinModel', 'Session');
+disp(ranovatbl)
+end
+
+%% absolute weight
+figure; 
+set(gcf,'Position',[100 100 1200 600]);
+
+% Groupings: first 3 predictors, second 3 predictors
+for p = 1:3
+    % Determine subplot
+    
+    subplot(3,1,p); hold on;
+
+    
+    % Extract weights
+    WT_end = {eval(['WT_weight1_end']),eval(['WT_weight2_end']),eval(['WT_weight4_end']),eval(['WT_weight5_end'])};
+    WT_start ={eval(['WT_weight2_start']),eval(['WT_weight3_start']),eval(['WT_weight4_start']),eval(['WT_weight5_start'])};
+    Mut_end = {eval(['Mut_weight1_end']),eval(['Mut_weight2_end']),eval(['Mut_weight4_end']),eval(['Mut_weight5_end'])};
+    Mut_start = {eval(['Mut_weight2_start']),eval(['Mut_weight3_start']),eval(['Mut_weight4_start']),eval(['Mut_weight5_start'])};
+    pred = p;
+    WT_seq = [WT_end{1}(:,pred), WT_start{1}(:,pred),WT_end{2}(:,pred), WT_start{2}(:,pred), WT_end{3}(:,pred), WT_start{3}(:,pred),WT_end{4}(:,pred), WT_start{4}(:,pred),];
+    Mut_seq = [Mut_end{1}(:,pred), Mut_start{1}(:,pred),Mut_end{2}(:,pred), Mut_start{2}(:,pred),Mut_end{3}(:,pred), Mut_start{3}(:,pred),Mut_end{4}(:,pred), Mut_start{4}(:,pred)];
+    % Compute slope per animal
+    % WT_slope = WT_start_next - WT_end;
+    % Mut_slope = Mut_start_next - Mut_end;
+    % 
+    % Plot individual subjects (WT)
+    for i = 1:size(WT_seq,1)
+        plot([1 2], WT_seq(i,[1 2]), '--', 'Color', [colWT 0.4], 'LineWidth', 0.8, 'HandleVisibility','off');
+        plot([3 4], WT_seq(i,[3 4]), '--', 'Color', [colWT 0.4], 'LineWidth', 0.8, 'HandleVisibility','off');
+        plot([5 6], WT_seq(i,[5 6]), '--', 'Color', [colWT 0.4], 'LineWidth', 0.8, 'HandleVisibility','off');
+        plot([7 8], WT_seq(i,[7 8]), '--', 'Color', [colWT 0.4], 'LineWidth', 0.8, 'HandleVisibility','off');
+    end
+    % Plot individual subjects (Mut)
+    for i = 1:size(Mut_seq,1)
+        plot([1 2], Mut_seq(i,[1 2]), '--', 'Color', [colMut 0.4], 'LineWidth', 0.8, 'HandleVisibility','off');
+        plot([3 4], Mut_seq(i,[3 4]), '--', 'Color', [colMut 0.4], 'LineWidth', 0.8, 'HandleVisibility','off');
+        plot([5 6], Mut_seq(i,[5 6]), '--', 'Color', [colMut 0.4], 'LineWidth', 0.8, 'HandleVisibility','off');
+        plot([7 8], Mut_seq(i,[7 8]), '--', 'Color', [colMut 0.4], 'LineWidth', 0.8, 'HandleVisibility','off');
+
+    end
+    
+    
+    % --- Compute means and SEM ---
+    WT_mean = mean(WT_seq,1,'omitnan');
+    WT_sem  = std(WT_seq,0,1,'omitnan') ./ sqrt(sum(~isnan(WT_seq(:,1))));
+    Mut_mean = mean(Mut_seq,1,'omitnan');
+    Mut_sem  = std(Mut_seq,0,1,'omitnan') ./ sqrt(sum(~isnan(Mut_seq(:,1))));
+    
+    % --- Plot means and error bars ---
+    h1 = errorbar([1 2], WT_mean([1 2]), WT_sem([1 2]), 'o-', ...
+        'Color', colWT, 'MarkerFaceColor', colWT, 'LineWidth', 2, 'CapSize', 8);
+    errorbar([3 4], WT_mean([3 4]), WT_sem([3 4]), 'o-', ...
+        'Color', colWT, 'MarkerFaceColor', colWT, 'LineWidth', 2, 'CapSize', 8, 'HandleVisibility','off');
+    errorbar([5 6], WT_mean([5 6]), WT_sem([5 6]), 'o-', ...
+        'Color', colWT, 'MarkerFaceColor', colWT, 'LineWidth', 2, 'CapSize', 8, 'HandleVisibility','off');
+    errorbar([7 8], WT_mean([7 8]), WT_sem([7 8]), 'o-', ...
+        'Color', colWT, 'MarkerFaceColor', colWT, 'LineWidth', 2, 'CapSize', 8, 'HandleVisibility','off');
+
+    h2 = errorbar([1 2], Mut_mean([1 2]), Mut_sem([1 2]), 'o-', ...
+        'Color', colMut, 'MarkerFaceColor', colMut, 'LineWidth', 2, 'CapSize', 8);
+    errorbar([3 4], Mut_mean([3 4]), Mut_sem([3 4]), 'o-', ...
+        'Color', colMut, 'MarkerFaceColor', colMut, 'LineWidth', 2, 'CapSize', 8, 'HandleVisibility','off');
+    errorbar([5 6], Mut_mean([5 6]), Mut_sem([5 6]), 'o-', ...
+        'Color', colMut, 'MarkerFaceColor', colMut, 'LineWidth', 2, 'CapSize', 8, 'HandleVisibility','off');
+    errorbar([7 8], Mut_mean([7 8]), Mut_sem([7 8]), 'o-', ...
+        'Color', colMut, 'MarkerFaceColor', colMut, 'LineWidth', 2, 'CapSize', 8, 'HandleVisibility','off');
+    
+    
+    if p == 1 
+        legend([h1 h2],{'WT',mutGene},'Location','best','Box','off');
+    end
+    
+    % ---- Wilcoxon test within genotype ----
+    % p_wt = signrank(WT_end, WT_start_next);
+    % p_mut = signrank(Mut_end, Mut_start_next);
+    % 
+    % % Optional FDR correction can be applied across all 6 predictors later
+    % 
+    % % Display p-values
+    % yl = ylim;
+    % text(1.5, yl(2)-0.05*(yl(2)-yl(1)), sprintf('WT p=%.3f',p_wt),'Color',colWT,'HorizontalAlignment','center');
+    % text(1.5, yl(2)-0.1*(yl(2)-yl(1)), sprintf('Mut p=%.3f',p_mut),'Color',colMut,'HorizontalAlignment','center');
+    % 
+    % Labels
+    xticks([1 2 3 4 5 6 7 8]); xticklabels({'AB1', 'AB2', 'AB2', 'AB3', 'CD1', 'CD2', 'CD2', 'CD3' });
+    ylabel(predictors{p}); box off; 
+    %title(predictors{p});
+    end
+end
+
+sgtitle('Session transitions (End → Start) with individual and mean ± SEM');
 
 %% plot glm result as a function of sessions
 

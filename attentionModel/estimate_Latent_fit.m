@@ -50,7 +50,7 @@ for k = 1:length(subjects) % no parallel processing
         csv_row = find(strcmp(dataIndex.Animal,num2str(s)) & strcmp(dataIndex.Protocol,'AB-CD'),3);
         csvfilepath = dataIndex.BehCSV{csv_row(3)};
     end
-    plot_real_fit_data(this_data, fitData, [fit_param], subjects(k), label, analysisFolder, csvfilepath)
+    %plot_real_fit_data(this_data, fitData, [fit_param], subjects(k), label, analysisFolder, csvfilepath)
 end
 
 % load rt, iti, and psychometric data
@@ -77,24 +77,37 @@ for k = 1:length(subjects)
         Q_step = data.Q_step;
         QSum_engaged = data.engaged_count;
         QSum_disengaged = data.disengaged_count;
-        rt_sum = data.rt;
+        upper_bound = prctile(data.rt,95);
+        rt_sum = data.rt(data.rt<upper_bound);
         iti_sum = data.iti;
-        p_engaged_sum = data.p_engaged;
+        % average rt in engaged and disenaged state
+        % remove the longest 5% trials
+        
+        rt_average_engaged = nanmean(data.rt(data.rt<upper_bound & data.p_engaged>0.5));
+        rt_average_disengaged = nanmean(data.rt(data.rt<upper_bound & data.p_engaged < 0.5));
+
+        p_engaged_sum = data.p_engaged(data.rt<upper_bound);
         if strcmp(geno,'WT')
-            genoMask = repmat(0, length(data.rt),1);
+            genoMask = repmat(0, length(data.rt(data.rt<upper_bound)),1);
         elseif strcmp(geno, mutGene)
-            genoMask = repmat(1, length(data.rt),1);
+            genoMask = repmat(1, length(data.rt(data.rt<upper_bound)),1);
         end
     else
         QSum_engaged = cat(3, QSum_engaged,data.engaged_count);
         QSum_disengaged = cat(3, QSum_disengaged,data.disengaged_count);
-        rt_sum = [rt_sum;data.rt];
+        upper_bound = prctile(data.rt,95); % remove longest 5% rt
+        rt_sum = [rt_sum;data.rt(data.rt<upper_bound)];
         iti_sum = [iti_sum;data.iti];
-        p_engaged_sum = [p_engaged_sum;data.p_engaged];
+        
+        rt_average_engaged =[rt_average_engaged; 
+                nanmean(data.rt(data.rt<upper_bound & data.p_engaged>0.75))];
+        rt_average_disengaged = [rt_average_disengaged;
+                nanmean(data.rt(data.rt<upper_bound & data.p_engaged < 0.25))];
+        p_engaged_sum = [p_engaged_sum;data.p_engaged(data.rt<upper_bound)];
         if strcmp(geno,'WT')
-            genoMask = [genoMask; repmat(0, length(data.rt),1)];
+            genoMask = [genoMask; repmat(0, length(data.rt(data.rt<upper_bound)),1)];
         elseif strcmp(geno, mutGene)
-            genoMask = [genoMask; repmat(1, length(data.rt),1)];
+            genoMask = [genoMask; repmat(1, length(data.rt(data.rt<upper_bound)),1)];
         end
     end
 end
@@ -124,6 +137,7 @@ errorbar(Q_step, meanPR, stePR, 'o', ...
     'MarkerFaceColor','k','MarkerEdgeColor','k', ...
     'Color','k','LineStyle','none','CapSize',6);
 plot(Q_step, predicted_PR)
+
 set(gca,'box', 'off')
 title('WT')
 set(gca, 'XTickLabel', [])
@@ -149,6 +163,7 @@ set(gca,'box', 'off')
 title(mutGene)
 set(gca, 'XTickLabel', [])
 
+
 % disengaged trials
 subplot(2,2,3)
 yyaxis left
@@ -168,6 +183,7 @@ errorbar(Q_step, meanPR, stePR, 'o', ...
     'Color','k','LineStyle','none','CapSize',6);
 plot(Q_step, predicted_PR)
 set(gca,'box', 'off')
+xlabel('\beta(\DeltaQ+stick)', 'Interpreter', 'tex')
 
 subplot(2,2,4)
 
@@ -188,7 +204,7 @@ errorbar(Q_step, meanPR, stePR, 'o', ...
     'Color','k','LineStyle','none','CapSize',6);
 plot(Q_step, predicted_PR)
 set(gca,'box', 'off')
-
+xlabel('\beta(\DeltaQ+stick)', 'Interpreter', 'tex')
 
 
     print(gcf,'-dpng',fullfile(savefigpath,'latent', ['hybrid_psychometric_', label]));    %png format
@@ -220,16 +236,16 @@ engaged = [ones(size(engaged_HET));
            2*ones(size(disengaged_WT))];
 
 % Run 2-way ANOVA
-[p, tbl, stats] = anovan(data, {categorical(geno), categorical(engaged)}, ...
-    'model', 'interaction', ...
-    'varnames', {'Genotype','Engagement'});
-[c,m,h,gnames] = multcompare(stats, 'Dimension', [1 2]);
-tbl = array2table(c,"VariableNames", ...
-    ["Group1","Group2","Lower Limit","Difference","Upper Limit","P-value"]);
-tbl.("Group1") = gnames(tbl.("Group1"));
-tbl.("Group2") = gnames(tbl.("Group2"));
-
-p_HET = kstest_permutation(engaged_HET, disengaged_HET);
+% [p, tbl, stats] = anovan(data, {categorical(geno), categorical(engaged)}, ...
+%     'model', 'interaction', ...
+%     'varnames', {'Genotype','Engagement'});
+% [c,m,h,gnames] = multcompare(stats, 'Dimension', [1 2]);
+% tbl = array2table(c,"VariableNames", ...
+%     ["Group1","Group2","Lower Limit","Difference","Upper Limit","P-value"]);
+% tbl.("Group1") = gnames(tbl.("Group1"));
+% tbl.("Group2") = gnames(tbl.("Group2"));
+% 
+% p_HET = kstest_permutation(engaged_HET, disengaged_HET);
 
 figure;
 %subplot(1,2,1)
@@ -242,10 +258,25 @@ ylabel('Response time (s)')
 xticks([1 2 3 4])
 xticklabels({'Engaged HET','Disengaged HET', 'Engaged WT', 'Disengaged WT'})
 %title('HET')
-[p,~] = ranksum(engaged_HET, disengaged_HET);
-text(1.5, 1.8, sprintf('HET:p = %.3g', c(2,6)), ...
+[p1,~] = ranksum(engaged_HET, disengaged_HET);
+[p2, ~] = ranksum(engaged_WT, disengaged_WT);
+[p3,~] = ranksum(engaged_HET, engaged_WT);
+[p4, ~] = ranksum(disengaged_HET, disengaged_WT);
+
+pvals = [p1 p2 p3 p4];
+
+% Step 2: multiple comparison correction
+% Option a: Bonferroni
+p_bonf = min(pvals * length(pvals), 1);
+
+text(1.5, 1.8, sprintf('HET:p = %.3g', p_bonf(1)), ...
     'HorizontalAlignment', 'center', 'FontSize', 20);
-text(3.5, 1.8, sprintf('WT:p = %.3g', c(5,6)), ...
+text(3.5, 1.8, sprintf('WT:p = %.3g', p_bonf(2)), ...
+    'HorizontalAlignment', 'center', 'FontSize', 20);
+
+text(2, 2, sprintf('Engaged:p = %.3g', p_bonf(3)), ...
+    'HorizontalAlignment', 'center', 'FontSize', 20);
+text(4, 2, sprintf('Disengaged:p = %.3g', p_bonf(4)), ...
     'HorizontalAlignment', 'center', 'FontSize', 20);
 
 savefitpath = fullfile(savefigpath,'latent');
@@ -253,23 +284,89 @@ print(gcf,'-dpng',fullfile(savefitpath, ['rt_engage_', label]));    %png format
 saveas(gcf, fullfile(savefitpath, ['rt_engage_', label]), 'fig');
 saveas(gcf, fullfile(savefitpath, ['rt_engage_', label]),'svg');
 
-% histogram
-% edges = 0:0.05:2;
-% figure;
-% subplot(1,2,1)
-% h1 = histogram(engaged_HET, edges, ...
-%     'Normalization', 'pdf', 'DisplayStyle', 'stairs', 'LineWidth', 2)
-% hold on;
-% h0 = histogram(disengaged_HET, edges, ...
-%     'Normalization', 'pdf', 'DisplayStyle', 'stairs', 'LineWidth', 2)
-% [~,p] = kstest2(h1.Values, h0.Values)
-% 
-% subplot(1,2,2)
-% histogram(engaged_WT, edges, ...
-%     'Normalization', 'pdf', 'DisplayStyle', 'stairs', 'LineWidth', 2)
-% hold on;
-% histogram(disengaged_WT, edges, ...
-%     'Normalization', 'pdf', 'DisplayStyle', 'stairs', 'LineWidth', 2)
+%% plot average rt in sessions 
+% not doable - too few disengaged trials in some session
+
+% genotypes: n×1 cell array ('WT' or 'mutGene')
+% rt_average_engaged, rt_average_disengage: n×1 numeric vectors
+
+isWT  = strcmp(genotypes, 'WT');
+isMut = strcmp(genotypes, mutGene);   % adjust name if needed
+
+positions = [1, 2, 4, 5]; % [WT_engage, WT_disengage, Mut_engage, Mut_disengage]
+
+figure; hold on;
+
+% --- WT ---
+b1 = boxchart(ones(sum(isWT),1)*positions(1), rt_average_engaged(isWT), ...
+    'BoxFaceColor', [0 0 0], 'BoxWidth', 0.6);
+b2 = boxchart(ones(sum(isWT),1)*positions(2), rt_average_disengaged(isWT), ...
+    'BoxFaceColor', [0.6 0.6 0.6], 'BoxWidth', 0.6);
+
+% --- Mutant ---
+b3 = boxchart(ones(sum(isMut),1)*positions(3), rt_average_engaged(isMut), ...
+    'BoxFaceColor', [1 0.4 0.4], 'BoxWidth', 0.6);
+b4 = boxchart(ones(sum(isMut),1)*positions(4), rt_average_disengaged(isMut), ...
+    'BoxFaceColor', [0.8 0 0], 'BoxWidth', 0.6);
+
+% --- Axes formatting ---
+xlim([0 6]);
+ylabel('Average RT');
+set(gca, 'TickDir', 'out', 'Box', 'off');
+
+% Label engaged/disengaged per genotype
+xticks(positions);
+xticklabels({'Engaged','Disengaged','Engaged','Disengaged'});
+ax = gca;
+ax.XTickLabelRotation = 15;
+
+% Group labels ("WT" and "mutGene") below x-axis
+text(mean(positions(1:2)), max(ylim)-0.05*range(ylim), 'WT', ...
+    'HorizontalAlignment','center','VerticalAlignment','top','FontWeight','bold');
+text(mean(positions(3:4)), max(ylim)-0.05*range(ylim), mutGene, ...
+    'HorizontalAlignment','center','VerticalAlignment','top','FontWeight','bold');
+
+% Optional dashed separator between genotypes
+plot([3 3], ylim, 'k--', 'LineWidth', 1);
+
+% --- Mann–Whitney tests ---
+p1  = ranksum(rt_average_engaged(isWT),  rt_average_disengaged(isWT));
+p2 = ranksum(rt_average_engaged(isMut), rt_average_disengaged(isMut));
+p3 = ranksum(rt_average_engaged(isWT), rt_average_engaged(isMut));
+p4 = ranksum(rt_average_disengaged(isWT), rt_average_disengaged(isMut));
+pvals = [p1 p2 p3 p4];
+
+% Step 2: multiple comparison correction
+% Option a: Bonferroni
+p_bonf = min(pvals * length(pvals), 1);
+
+yl = ylim;
+y_offset = 0.08 * range(yl);
+
+% WT p-value
+plot([positions(1) positions(2)], [1 1]*(yl(2)-y_offset), 'k', 'LineWidth', 1);
+text(mean(positions(1:2)), yl(2), sprintf('p = %.3f', p_bonf(1)), ...
+    'HorizontalAlignment','center','VerticalAlignment','bottom','FontSize',10);
+
+% Mut p-value
+plot([positions(3) positions(4)], [1 1]*(yl(2)-y_offset), 'k', 'LineWidth', 1);
+text(mean(positions(3:4)), yl(2), sprintf('p = %.3f', p_bonf(2)), ...
+    'HorizontalAlignment','center','VerticalAlignment','bottom','FontSize',10);
+
+plot([positions(1) positions(3)], [1 1]*(yl(2)-y_offset-0.05), 'k', 'LineWidth', 1);
+text(mean([positions(1),positions(3)]), yl(2)-0.05, sprintf('p = %.3f', p_bonf(3)), ...
+    'HorizontalAlignment','center','VerticalAlignment','bottom','FontSize',10);
+
+plot([positions(2) positions(4)], [1 1]*(yl(2)-y_offset-0.1), 'k', 'LineWidth', 1);
+text(mean([positions(2),positions(4)]), yl(2)-0.1, sprintf('p = %.3f', p_bonf(4)), ...
+    'HorizontalAlignment','center','VerticalAlignment','bottom','FontSize',10);
+
+title('Reaction time by Genotype and Engagement');
+savefitpath = fullfile(savefigpath,'latent');
+print(gcf,'-dpng',fullfile(savefitpath, ['rt_engage_session', label]));    %png format
+saveas(gcf, fullfile(savefitpath, ['rt_engage_session', label]), 'fig');
+saveas(gcf, fullfile(savefitpath, ['rt_engage_session', label]),'svg');
+
 
 %% intertrial interval
 engaged_HET = iti_sum(p_engaged_sum>0.75 & genoMask==1);

@@ -1,5 +1,5 @@
 function estimate_Latent_fit_psy(psymodelName, dataIndex, label, savefigpath)
-
+setup_figprop;
 % used fitted latent variables to estimate the result
 
 psy_fit = readtable(psymodelName);
@@ -189,6 +189,7 @@ errorbar(weighted_sum_step, meanPR, stePR, 'o', ...
     'MarkerFaceColor','k','MarkerEdgeColor','k', ...
     'Color','k','LineStyle','none','CapSize',6);
 plot(weighted_sum_step, predicted_curve)
+xlabel(['\bf\it x \cdot w'], 'Interpreter', 'tex')
 set(gca,'box', 'off')
 title('WT')
 
@@ -209,11 +210,15 @@ errorbar(weighted_sum_step, meanPR, stePR, 'o', ...
 plot(weighted_sum_step, predicted_curve)
 set(gca,'box', 'off')
 title(mutGene)
-
+xlabel(['\bf\it x \cdot w'], 'Interpreter', 'tex')
     print(gcf,'-dpng',fullfile(savefigpath,'latent', ['psy_psychometric_', label]));    %png format
     saveas(gcf, fullfile(savefigpath,'latent', ['psy_psychometric_', label]), 'fig');
     saveas(gcf, fullfile(savefigpath, 'latent',['psy_psychometric_', label]),'svg');
- 
+
+%% plot relative weight
+% average weight from the last 100 trials from previous session
+% and average weight from the first 100 trials from next session
+%relative_weight
 %% 2. response time correlation with relative weight of stimulus
 % multiple linear regression
 %(bias/stickiness)
@@ -226,6 +231,18 @@ allStim = [];
 allStick = [];
 allGenotype = [];
 allAnimal = [];
+
+% cut off largest 5% of RT in every session, calculate the mean RT per
+% session
+meanRT_session = nan(numel(rt_all),1);
+for rr = 1:numel(rt_all)
+    tempRT = rt_all{rr};
+    cutRT = prctile(tempRT,0.95);
+    RTIncluded = tempRT(tempRT<cutRT);
+    meanRT_session(rr) = nanmean(RTIncluded);
+end
+
+
 
 for iAnimal = 1:numel(rt_all)
     rt = rt_all{iAnimal}(:);  
@@ -256,6 +273,12 @@ end
 % Build table
 [pathstr, name, ext] = fileparts(psymodelName);
 savedatapath = pathstr;
+
+% save the average RT and corresponding genotype
+RTData.meanRT = meanRT_session;
+RTData.geno = genotypes;
+save(fullfile(savedatapath, ['meanRT', label, '.mat']), 'RTData');
+ 
 
 % cutoff highest 5% of data
 cutoff = prctile(allRT, 95);

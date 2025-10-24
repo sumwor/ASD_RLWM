@@ -1,5 +1,5 @@
 function estimate_Latent_fit_psy(psymodelName, dataIndex, label, savefigpath)
-
+setup_figprop;
 % used fitted latent variables to estimate the result
 
 psy_fit = readtable(psymodelName);
@@ -189,6 +189,7 @@ errorbar(weighted_sum_step, meanPR, stePR, 'o', ...
     'MarkerFaceColor','k','MarkerEdgeColor','k', ...
     'Color','k','LineStyle','none','CapSize',6);
 plot(weighted_sum_step, predicted_curve)
+xlabel(['\bf\it x \cdot w'], 'Interpreter', 'tex')
 set(gca,'box', 'off')
 title('WT')
 
@@ -209,11 +210,15 @@ errorbar(weighted_sum_step, meanPR, stePR, 'o', ...
 plot(weighted_sum_step, predicted_curve)
 set(gca,'box', 'off')
 title(mutGene)
-
+xlabel(['\bf\it x \cdot w'], 'Interpreter', 'tex')
     print(gcf,'-dpng',fullfile(savefigpath,'latent', ['psy_psychometric_', label]));    %png format
     saveas(gcf, fullfile(savefigpath,'latent', ['psy_psychometric_', label]), 'fig');
     saveas(gcf, fullfile(savefigpath, 'latent',['psy_psychometric_', label]),'svg');
- 
+
+%% plot relative weight
+% average weight from the last 100 trials from previous session
+% and average weight from the first 100 trials from next session
+%relative_weight
 %% 2. response time correlation with relative weight of stimulus
 % multiple linear regression
 %(bias/stickiness)
@@ -226,6 +231,18 @@ allStim = [];
 allStick = [];
 allGenotype = [];
 allAnimal = [];
+
+% cut off largest 5% of RT in every session, calculate the mean RT per
+% session
+meanRT_session = nan(numel(rt_all),1);
+for rr = 1:numel(rt_all)
+    tempRT = rt_all{rr};
+    cutRT = prctile(tempRT,0.95);
+    RTIncluded = tempRT(tempRT<cutRT);
+    meanRT_session(rr) = nanmean(RTIncluded);
+end
+
+
 
 for iAnimal = 1:numel(rt_all)
     rt = rt_all{iAnimal}(:);  
@@ -257,8 +274,14 @@ end
 [pathstr, name, ext] = fileparts(psymodelName);
 savedatapath = pathstr;
 
-% cutoff highest 1% of data
-cutoff = prctile(allRT, 99);
+% save the average RT and corresponding genotype
+RTData.meanRT = meanRT_session;
+RTData.geno = genotypes;
+save(fullfile(savedatapath, ['meanRT', label, '.mat']), 'RTData');
+ 
+
+% cutoff highest 5% of data
+cutoff = prctile(allRT, 95);
 normalRTMask = allRT<cutoff;
 tbl = table(allRT(normalRTMask), allBias(normalRTMask), allStim(normalRTMask), allStick(normalRTMask), categorical(allGenotype(normalRTMask)), categorical(allAnimal(normalRTMask)), ...
     'VariableNames', {'ResponseTime','Bias','Stimulus','Stick','Genotype','Animal'});
@@ -267,9 +290,9 @@ tbl.Genotype = reordercats(tbl.Genotype, {'WT',mutGene});
 linear_label = ['response time_', label];
 mixed_linear_psyweight(tbl, linear_label, savefigpath, savedatapath, mutGene)
 
-% cutoff lowest 0.5% and highest 0.5%
-cutlow = prctile(allST,0.5);
-cuthigh = prctile(allST, 99.5);
+% cutoff lowest 2.5% and highest 2.5%
+cutlow = prctile(allST,2.5);
+cuthigh = prctile(allST, 97.5);
 normalSTMask = allST>cutlow & allST<cuthigh;
 tbl = table(allST(normalSTMask), allBias(normalSTMask), allStim(normalSTMask), allStick(normalSTMask), categorical(allGenotype(normalSTMask)), categorical(allAnimal(normalSTMask)), ...
     'VariableNames', {'ResponseTime','Bias','Stimulus','Stick','Genotype','Animal'});
@@ -278,7 +301,7 @@ linear_label = ['sample time_', label];
 mixed_linear_psyweight(tbl, linear_label, savefigpath, savedatapath,mutGene)
 
 
-cutoff = prctile(allDT, 99);
+cutoff = prctile(allDT, 95);
 normalDTMask = allDT<cutoff;
 tbl = table(allDT(normalDTMask), allBias(normalDTMask), allStim(normalDTMask), allStick(normalDTMask), categorical(allGenotype(normalDTMask)), categorical(allAnimal(normalDTMask)), ...
     'VariableNames', {'ResponseTime','Bias','Stimulus','Stick','Genotype','Animal'});
